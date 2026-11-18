@@ -1,7 +1,6 @@
 import { useState, type ReactNode } from "react";
 import {
   ArrowLeftRight,
-  BookOpen,
   Boxes,
   ClipboardList,
   LayoutDashboard,
@@ -39,7 +38,6 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/materials", label: "物料目录", icon: Boxes },
   { href: "/suppliers", label: "供应商", icon: Store },
   { href: "/categories", label: "类别", icon: Tags },
-  { href: "/guide", label: "假设与范围", icon: BookOpen },
 ];
 
 /** 手机底部导航只放前 5 个。 */

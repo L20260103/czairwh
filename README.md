@@ -71,7 +71,7 @@ src/
   lib/supabase/            客户端、公开钥匙、登录开关
   lib/inventory/           校验、计算、Supabase 读写
   components/AuthGate.tsx  登录门占位，没有挂到 App 上
-  pages/                   总览、库存、出入库、流水、待补货、物料、供应商、类别、假设与范围
+  pages/                   总览、库存、出入库、流水、待补货、物料、供应商、类别
 reference/                 原始文件，不参与打包
 ```
 
@@ -79,4 +79,4 @@ reference/                 原始文件，不参与打包
 
 数量精度、出库 / 退库限制、重复提交窗口等业务规则都在 `src/lib/inventory/inventory.ts`。
 类别、供应商和报价的校验在 `src/lib/inventory/catalog.ts`。
-页面上的说明文字在 `src/pages/GuidePage.tsx`。
+「假设与范围」页面已删除。地址栏里的旧 `#/guide` 会回到总览。

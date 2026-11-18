@@ -27,7 +27,29 @@ function notifyAll() {
   listeners.forEach((listener) => listener());
 }
 
-if (typeof window !== "undefined") window.addEventListener("hashchange", notifyAll);
+/** 侧边栏里的页面。旧的 #/guide 不在其中，会回到总览。 */
+const KNOWN_PAGE_PREFIXES = ["/inventory", "/move", "/history", "/reorder", "/materials", "/suppliers", "/categories"];
+
+function isKnownPage(pathname: string): boolean {
+  if (pathname === "/") return true;
+  return KNOWN_PAGE_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+}
+
+/** 未知路径，以及已删除的「假设与范围」(#/guide)，改写到总览。 */
+function redirectUnknownHash(): void {
+  if (isKnownPage(readHashLocation().pathname)) return;
+  const next = new URL(window.location.href);
+  next.hash = "#/";
+  window.history.replaceState(null, "", next);
+}
+
+if (typeof window !== "undefined") {
+  redirectUnknownHash();
+  window.addEventListener("hashchange", () => {
+    redirectUnknownHash();
+    notifyAll();
+  });
+}
 
 /** 把 href 转成 hash 里的路径。 */
 export function toHashPath(href: string): string {
