@@ -8,10 +8,12 @@ import type {
   Supplier,
   SupplierProduct,
 } from "@/lib/inventory/types";
+import { normalizeSpecs } from "@/lib/inventory/specs";
 import { isUnitCode } from "@/lib/inventory/units";
 import { supabase } from "@/lib/supabase/client";
 
-const MATERIAL_COLUMNS = "id, sku, name_zh, name_en, category_id, unit, location, min_stock, active, note, created_at";
+const MATERIAL_COLUMNS =
+  "id, sku, name_zh, name_en, category_id, unit, location, min_stock, active, note, created_at, specs";
 const MOVEMENT_COLUMNS =
   "id, at, type, material_id, quantity, before_qty, after_qty, operator, job_number, recipient, supplier_id, reference, notes";
 const CATEGORY_COLUMNS = "id, name_zh, name_en, parent_id, sort_order, created_at";
@@ -104,6 +106,7 @@ function mapMaterial(value: unknown): Material {
     minStock: asNumber(row.min_stock, "最低库存"),
     active: asBoolean(row.active, "启用状态"),
     note: asOptionalString(row.note),
+    specs: normalizeSpecs(row.specs),
     createdAt: asString(row.created_at, "物料时间"),
   };
 }
@@ -267,6 +270,7 @@ function materialRow(material: Material) {
     min_stock: material.minStock,
     active: material.active,
     note: material.note,
+    specs: normalizeSpecs(material.specs),
     created_at: material.createdAt,
   };
 }

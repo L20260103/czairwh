@@ -11,6 +11,7 @@ import type {
   ReorderSuggestion,
   StockStatus,
 } from "./types";
+import { normalizeSpecs } from "./specs";
 import { getUnit, isUnitCode, type UnitCode } from "./units";
 
 /** 数量内部按 1/100 存成整数计算，避免浮点误差。 */
@@ -466,6 +467,7 @@ export function validateMaterial(
       minStock,
       active: draft.active,
       note,
+      specs: normalizeSpecs(draft.specs),
     },
   };
 }

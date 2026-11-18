@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { bilingualLabel, formatAud, joinMeta, locationText } from "@/lib/format";
 import { categoryPath, cheapestOffers, supplierName } from "@/lib/inventory/catalog";
+import { specSearchText, specSummary } from "@/lib/inventory/specs";
 import type { InventoryState, Material, SupplierProduct } from "@/lib/inventory/types";
 import { getUnit } from "@/lib/inventory/units";
 import { useInventory } from "@/store/InventoryProvider";
@@ -40,7 +41,7 @@ export function MaterialsPage() {
     return state.materials.map((material) => ({
       material,
       offers: offersByMaterial.get(material.id) ?? NO_OFFERS,
-      haystack: `${material.sku} ${material.nameZh} ${material.nameEn} ${categoryPath(state.categories, material.categoryId)} ${locationText(material.location)}`.toLowerCase(),
+      haystack: `${material.sku} ${material.nameZh} ${material.nameEn} ${categoryPath(state.categories, material.categoryId)} ${locationText(material.location)} ${specSearchText(material.specs)}`.toLowerCase(),
     }));
   }, [state.categories, state.materials, state.supplierProducts]);
 
@@ -69,28 +70,32 @@ export function MaterialsPage() {
         显示 {materials.length} / {state.materials.length}
       </p>
       <ul className="grid gap-3">
-        {materials.slice(0, visibleLimit).map(({ material, offers }) => (
-          <li key={material.id} className="rounded-xl bg-white p-4 ring-1 ring-foreground/10">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="font-semibold">{bilingualLabel(material.nameZh, material.nameEn)}</h2>
-                  {material.active ? null : <span className="text-xs text-muted-foreground">已停用</span>}
+        {materials.slice(0, visibleLimit).map(({ material, offers }) => {
+          const summary = specSummary(material.specs);
+          return (
+            <li key={material.id} className="rounded-xl bg-white p-4 ring-1 ring-foreground/10">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="font-semibold">{bilingualLabel(material.nameZh, material.nameEn)}</h2>
+                    {material.active ? null : <span className="text-xs text-muted-foreground">已停用</span>}
+                  </div>
+                  {summary ? <p className="mt-1 text-sm leading-5 text-[#1f5f78]">{summary}</p> : null}
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {joinMeta([material.sku, categoryPath(state.categories, material.categoryId) || "未分类", locationText(material.location)])}
+                  </p>
+                  <CheapestOffer state={state} materialId={material.id} offers={offers} />
+                  <p className="mt-1 text-sm">
+                    单位 {getUnit(material.unit).label}（{getUnit(material.unit).en}） · 最低库存 {material.minStock}
+                  </p>
                 </div>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {joinMeta([material.sku, categoryPath(state.categories, material.categoryId) || "未分类", locationText(material.location)])}
-                </p>
-                <CheapestOffer state={state} materialId={material.id} offers={offers} />
-                <p className="mt-1 text-sm">
-                  单位 {getUnit(material.unit).label}（{getUnit(material.unit).en}） · 最低库存 {material.minStock}
-                </p>
+                <Button variant="outline" className="h-10 bg-white" onClick={() => setEditing(material)}>
+                  编辑
+                </Button>
               </div>
-              <Button variant="outline" className="h-10 bg-white" onClick={() => setEditing(material)}>
-                编辑
-              </Button>
-            </div>
-          </li>
-        ))}
+            </li>
+          );
+        })}
       </ul>
       {materials.length > visibleLimit ? <ShowMore onClick={showMore} /> : null}
       {materials.length === 0 ? (

@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 
 import { FormField } from "@/components/common";
+import { MaterialSpecs } from "@/components/MaterialSpecs";
 import { OptionSelect } from "@/components/OptionSelect";
 import { SupplierOffersEditor } from "@/components/SupplierOffersEditor";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { categorySelectOptions, validateOffers } from "@/lib/inventory/catalog";
 import { hasMovements } from "@/lib/inventory/inventory";
+import { normalizeSpecs, specEditRows, specsFromEditRows, type SpecEditRow } from "@/lib/inventory/specs";
 import type { Material, MaterialErrors, SupplierOfferDraft } from "@/lib/inventory/types";
 import { isUnitCode, LOCATION_SUGGESTIONS, UNITS, type UnitCode } from "@/lib/inventory/units";
 import { Link } from "@/lib/router";
@@ -29,6 +31,8 @@ export function MaterialDialog({ material, onClose }: { material: Material | nul
   const [minStock, setMinStock] = useState(material ? String(material.minStock) : "0");
   const [note, setNote] = useState(material?.note ?? "");
   const [active, setActive] = useState(material?.active ?? true);
+  const [specRows, setSpecRows] = useState<SpecEditRow[]>(() => specEditRows(material?.specs));
+  const [specsTouched, setSpecsTouched] = useState(false);
   const [offers, setOffers] = useState<SupplierOfferDraft[]>(() =>
     state.supplierProducts
       .filter((offer) => offer.materialId === material?.id)
@@ -56,10 +60,17 @@ export function MaterialDialog({ material, onClose }: { material: Material | nul
       toast.error(checked.error);
       return;
     }
+    if (specRows.some((row) => !row.key.trim() && row.value.trim())) {
+      const message = "技术参数写了值，但参数名是空的。";
+      setErrors({ form: message });
+      toast.error(message);
+      return;
+    }
+    const specs = specsTouched ? specsFromEditRows(specRows) : normalizeSpecs(material?.specs);
     setSaving(true);
     try {
       const result = await saveMaterial(
-        { sku, nameZh, nameEn, categoryId, unit, location, minStock, note, active },
+        { sku, nameZh, nameEn, categoryId, unit, location, minStock, note, active, specs },
         checked.value,
         persistedId,
       );
@@ -89,7 +100,7 @@ export function MaterialDialog({ material, onClose }: { material: Material | nul
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-xl" style={{ maxWidth: "36rem" }}>
+      <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-2xl" style={{ maxWidth: "42rem" }}>
         <DialogHeader>
           <DialogTitle>{persistedId ? "编辑物料" : "新增物料"}</DialogTitle>
           <DialogDescription>中文名和英文名至少填一个，两边都有时显示为「中文 English」。保存后所有打开这个网址的人都会看到。</DialogDescription>
@@ -104,6 +115,13 @@ export function MaterialDialog({ material, onClose }: { material: Material | nul
           <FormField label="英文名" htmlFor="material-name-en" error={errors.nameEn}>
             <Input id="material-name-en" value={nameEn} onChange={(event) => setNameEn(event.target.value)} className="h-11" aria-invalid={!!errors.nameEn} />
           </FormField>
+          <MaterialSpecs
+            rows={specRows}
+            onChange={(next) => {
+              setSpecsTouched(true);
+              setSpecRows(next);
+            }}
+          />
           <FormField label="类别" htmlFor="category" error={errors.categoryId} hint="从类别表里选。没有写死的类别清单。">
             {state.categories.length === 0 ? (
               <p className="text-sm text-[#8a4b16]">

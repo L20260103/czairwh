@@ -1,5 +1,6 @@
 import { formatAud, formatMelbourneTime, locationText, movementTypeLabel } from "@/lib/format";
 import { categoryPath, cheapestOffers, supplierName } from "@/lib/inventory/catalog";
+import { flattenedSpecKeys, specCsvCells, uniqueSpecHeaders } from "@/lib/inventory/specs";
 import {
   formatQty,
   fromCents,
@@ -37,8 +38,10 @@ function statusText(minStock: number, onHand: number, active: boolean): string {
   return active ? text : `已停用；${text}`;
 }
 
-/** 库存快照 CSV。 */
+/** 库存快照 CSV。常用技术参数各占一列，其余键放进「其余参数」JSON。 */
 export function inventorySnapshotCsv(state: InventoryState): string {
+  const materials = state.materials.slice().sort((a, b) => a.sku.localeCompare(b.sku));
+  const specKeys = flattenedSpecKeys(materials);
   const header = [
     "SKU",
     "中文名",
@@ -55,30 +58,30 @@ export function inventorySnapshotCsv(state: InventoryState): string {
     "对方品名",
     "未含GST价格",
     "备注",
+    ...uniqueSpecHeaders(specKeys),
+    "其余参数",
   ];
-  const rows = state.materials
-    .slice()
-    .sort((a, b) => a.sku.localeCompare(b.sku))
-    .map((material) => {
-      const onHand = getOnHand(state, material.id);
-      const shortfall = toCents(material.minStock) - toCents(onHand);
-      const suggested = shortfall > 0 ? fromCents(shortfall) : 0;
-      const [nameZh, nameEn] = materialNames(material);
-      return [
-        material.sku,
-        nameZh,
-        nameEn,
-        categoryPath(state.categories, material.categoryId),
-        getUnit(material.unit).label,
-        locationText(material.location),
-        formatQty(material.minStock),
-        formatQty(onHand),
-        statusText(material.minStock, onHand, material.active),
-        formatQty(Math.max(0, suggested)),
-        ...cheapestText(state, material.id),
-        material.note,
-      ];
-    });
+  const rows = materials.map((material) => {
+    const onHand = getOnHand(state, material.id);
+    const shortfall = toCents(material.minStock) - toCents(onHand);
+    const suggested = shortfall > 0 ? fromCents(shortfall) : 0;
+    const [nameZh, nameEn] = materialNames(material);
+    return [
+      material.sku,
+      nameZh,
+      nameEn,
+      categoryPath(state.categories, material.categoryId),
+      getUnit(material.unit).label,
+      locationText(material.location),
+      formatQty(material.minStock),
+      formatQty(onHand),
+      statusText(material.minStock, onHand, material.active),
+      formatQty(Math.max(0, suggested)),
+      ...cheapestText(state, material.id),
+      material.note,
+      ...specCsvCells(material.specs, specKeys),
+    ];
+  });
   return toCsv([header, ...rows]);
 }
 

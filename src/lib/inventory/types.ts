@@ -23,6 +23,8 @@ export interface Material {
   minStock: number;
   active: boolean;
   note: string;
+  /** 技术参数。空对象表示没有。列是 jsonb，not null，默认 {}。 */
+  specs: Record<string, unknown>;
   createdAt: string;
 }
 
@@ -104,6 +106,8 @@ export interface MaterialDraft {
   minStock: string;
   active: boolean;
   note: string;
+  /** 技术参数。新建时默认 {}。 */
+  specs: Record<string, unknown>;
 }
 
 export interface CategoryDraft {
