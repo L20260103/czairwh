@@ -52,7 +52,7 @@ npm run preview  # 预览打包结果
 
 `supplier_code` 即使在同一供应商下也不唯一。唯一键是 `(supplier_id, supplier_code, supplier_product_name)`。`currency` 固定为 `AUD`。入库的 `supplier_id` 可空；出库和退库必须为空。`app_settings` 目前只有 `last_operator`，没有预插行。
 
-单位不是表，是物料 `unit` 上的 check 约束（`piece`、`set`、`unit`、`roll`、`bottle`、`box`、`metre`、`kg`、`litre`、`sqm`）。操作人、领用人和工单号是流水上的文本，没有单独主档。
+单位不是表，是物料 `unit` 上的 check 约束（`piece`、`set`、`unit`、`roll`、`bottle`、`box`、`pair`、`metre`、`kg`、`litre`、`sqm`）。`pair` 显示为「对」。若已经执行过初版迁移，再执行 `supabase/migrations/20261118014817_add_pair_unit.sql` 才能保存单位为「对」的物料。操作人、领用人和工单号是流水上的文本，没有单独主档。
 
 ## 目录结构
 
