@@ -7,6 +7,7 @@ import {
   getOnHand,
   getReorderSuggestions,
   getStockStatus,
+  stockedMaterialIds,
   toCents,
   withDerivedBalances,
 } from "@/lib/inventory/inventory";
@@ -32,7 +33,8 @@ function cheapestText(state: InventoryState, materialId: string): [string, strin
   return [supplierName(state.suppliers, best.supplierId), best.supplierCode, best.supplierProductName, formatAud(best.priceExGst)];
 }
 
-function statusText(minStock: number, onHand: number, active: boolean): string {
+function statusText(minStock: number, onHand: number, active: boolean, stocked: boolean): string {
+  if (!stocked) return active ? "未入过库" : "已停用；未入过库";
   const status = getStockStatus(minStock, onHand);
   const text = status === "low" ? "低于最低库存" : status === "untracked" ? "未设最低库存" : "正常";
   return active ? text : `已停用；${text}`;
@@ -61,10 +63,13 @@ export function inventorySnapshotCsv(state: InventoryState): string {
     ...uniqueSpecHeaders(specKeys),
     "其余参数",
   ];
+  const stockedIds = stockedMaterialIds(state);
   const rows = materials.map((material) => {
+    const stocked = stockedIds.has(material.id);
     const onHand = getOnHand(state, material.id);
     const shortfall = toCents(material.minStock) - toCents(onHand);
-    const suggested = shortfall > 0 ? fromCents(shortfall) : 0;
+    // 没入过库的目录货不算缺货，建议补货量记 0。
+    const suggested = stocked && shortfall > 0 ? fromCents(shortfall) : 0;
     const [nameZh, nameEn] = materialNames(material);
     return [
       material.sku,
@@ -75,7 +80,7 @@ export function inventorySnapshotCsv(state: InventoryState): string {
       locationText(material.location),
       formatQty(material.minStock),
       formatQty(onHand),
-      statusText(material.minStock, onHand, material.active),
+      statusText(material.minStock, onHand, material.active, stocked),
       formatQty(Math.max(0, suggested)),
       ...cheapestText(state, material.id),
       material.note,

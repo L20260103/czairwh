@@ -35,7 +35,7 @@ export function ReorderPage() {
   return (
     <div>
       <PageHeader title="待补货">
-        当前库存低于最低库存时才会出现。建议补货量 = 最低库存 − 当前库存，只补到最低线。这里没有最高库存，也没有采购批量。这些数字不会发送给供应商，也不会写入 Tradify 或 monday。
+        只看已经入过库的物料。供应商目录里还没有流水的货不算缺货。当前库存低于最低库存时才会出现，数量用到 0 的在库物料仍会列出。建议补货量 = 最低库存 − 当前库存，只补到最低线。这里没有最高库存，也没有采购批量。这些数字不会发送给供应商，也不会写入 Tradify 或 monday。
       </PageHeader>
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <Button className="h-11 px-4" onClick={exportCsv} disabled={suggestions.length === 0}>
@@ -45,8 +45,8 @@ export function ReorderPage() {
       </div>
       {suggestions.length === 0 ? (
         <div className="rounded-xl border border-dashed border-[#c9d5df] bg-white/70 px-4 py-10 text-center">
-          <p className="font-medium text-[#1c3144]">目前没有低于最低库存的物料</p>
-          <p className="mt-1 text-sm text-muted-foreground">最低库存为 0 的物料不在监控里。</p>
+          <p className="font-medium text-[#1c3144]">目前没有低于最低库存的在库物料</p>
+          <p className="mt-1 text-sm text-muted-foreground">最低库存为 0 的不在监控里。还没入过库的目录货也不算缺货。</p>
         </div>
       ) : (
         <ul className="grid gap-3">

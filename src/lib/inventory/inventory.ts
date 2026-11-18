@@ -105,6 +105,16 @@ export function onHandCentsByMaterial(state: InventoryState): Map<string, number
   return totals;
 }
 
+/**
+ * 至少记过一笔出入库的物料。
+ * 库存后来变成 0 的仍在集合里；只有供应商目录、从没入过库的不在。
+ */
+export function stockedMaterialIds(state: InventoryState): Set<string> {
+  const ids = new Set<string>();
+  for (const movement of state.movements) ids.add(movement.materialId);
+  return ids;
+}
+
 function compareByTime(a: Movement, b: Movement): number {
   const diff = Date.parse(a.at) - Date.parse(b.at);
   return diff !== 0 && Number.isFinite(diff) ? diff : a.id.localeCompare(b.id);
@@ -158,12 +168,17 @@ export function getStockStatus(minStock: number, onHand: number): StockStatus {
   return toCents(onHand) < toCents(minStock) ? "low" : "ok";
 }
 
-/** 低于最低库存的物料，按缺口比例排序，并给出建议补货量。 */
+/**
+ * 低于最低库存、并且至少有过一笔流水的物料，按缺口比例排序，并给出建议补货量。
+ * 没入过库的目录货库存视为「不在仓库」，不算缺货，也不建议补货。
+ */
 export function getReorderSuggestions(state: InventoryState): ReorderSuggestion[] {
   const totals = onHandCentsByMaterial(state);
   return state.materials
     .map((material) => {
-      const onHand = fromCents(totals.get(material.id) ?? 0);
+      const cents = totals.get(material.id);
+      if (cents === undefined) return null;
+      const onHand = fromCents(cents);
       const shortfall = toCents(material.minStock) - toCents(onHand);
       if (toCents(material.minStock) <= 0 || shortfall <= 0) return null;
       return { material, onHand, suggested: fromCents(shortfall) };

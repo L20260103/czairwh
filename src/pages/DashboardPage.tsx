@@ -3,7 +3,7 @@ import { MovementList } from "@/components/MovementList";
 import { buttonVariants } from "@/components/ui/button";
 import { bilingualLabel, formatAud, joinMeta, locationText } from "@/lib/format";
 import { cheapestOffers, supplierName } from "@/lib/inventory/catalog";
-import { formatQty, getReorderSuggestions, movementsNewestFirst } from "@/lib/inventory/inventory";
+import { formatQty, getReorderSuggestions, movementsNewestFirst, stockedMaterialIds } from "@/lib/inventory/inventory";
 import { getUnit } from "@/lib/inventory/units";
 import { Link } from "@/lib/router";
 import { cn } from "@/lib/utils";
@@ -26,9 +26,11 @@ export function DashboardPage() {
   const { state } = useInventory();
   const reorder = getReorderSuggestions(state);
   const recent = movementsNewestFirst(state).slice(0, 6);
+  const stockedIds = stockedMaterialIds(state);
+  const stockedCount = state.materials.reduce((count, material) => count + (stockedIds.has(material.id) ? 1 : 0), 0);
   const stats = [
-    { href: "/inventory", label: "在册物料", value: String(state.materials.length), note: "全员同一份目录" },
-    { href: "/reorder", label: "低于最低库存", value: String(reorder.length), note: "只是建议，不会下单" },
+    { href: "/inventory", label: "在库物料", value: String(stockedCount), note: "有过出入库，数量为 0 仍算" },
+    { href: "/reorder", label: "低于最低库存", value: String(reorder.length), note: "只算在库物料，不会下单" },
     { href: "/history", label: "流水笔数", value: String(state.movements.length), note: "只追加，不能改旧账" },
     { href: "/move", label: "记住的操作人", value: state.lastOperator || "未填写", note: "不是登录账号" },
   ];
@@ -36,7 +38,7 @@ export function DashboardPage() {
   return (
     <div>
       <PageHeader title="库存总览">
-        Coolzone Heating & Cooling 的仓库试用账。所有设备看同一份库存，新记的账使用当前时间。
+        Coolzone Heating & Cooling 的仓库试用账。库存数字只算有过出入库记录的物料，供应商目录里还没入过库的货不算缺货。所有设备看同一份账，新记的账使用当前时间。
       </PageHeader>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -84,7 +86,7 @@ export function DashboardPage() {
             </Link>
           </div>
           {reorder.length === 0 ? (
-            <p className="text-sm text-muted-foreground">目前没有低于最低库存的物料。</p>
+            <p className="text-sm text-muted-foreground">目前没有低于最低库存的在库物料。</p>
           ) : (
             <ul className="grid gap-3">
               {reorder.slice(0, 5).map((item) => (

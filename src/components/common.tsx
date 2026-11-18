@@ -40,12 +40,23 @@ export function PageHeader({ title, children }: { title: string; children?: Reac
   );
 }
 
-/** 库存状态标记。 */
-export function StockStatusBadges({ minStock, qty, active }: { minStock: number; qty: number; active: boolean }) {
-  const status = getStockStatus(minStock, qty);
+/** 库存状态标记。没入过库的目录货不标成低于最低。 */
+export function StockStatusBadges({
+  minStock,
+  qty,
+  active,
+  stocked = true,
+}: {
+  minStock: number;
+  qty: number;
+  active: boolean;
+  stocked?: boolean;
+}) {
+  const status = stocked ? getStockStatus(minStock, qty) : "untracked";
   return (
     <span className="inline-flex flex-wrap gap-1">
       {active ? null : <Badge variant="secondary">已停用</Badge>}
+      {stocked ? null : <Badge variant="secondary">未入库</Badge>}
       {status === "low" ? (
         <Badge variant="outline" className="border-[#e4c7a4] bg-[#fbf6ee] text-[#8a4b16]">
           低于最低
@@ -56,7 +67,7 @@ export function StockStatusBadges({ minStock, qty, active }: { minStock: number;
           正常
         </Badge>
       ) : null}
-      {active && status === "untracked" ? <Badge variant="secondary">未监控</Badge> : null}
+      {active && stocked && status === "untracked" ? <Badge variant="secondary">未监控</Badge> : null}
     </span>
   );
 }
