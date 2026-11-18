@@ -52,7 +52,7 @@ npm run preview  # 预览打包结果
 
 `supplier_code` 即使在同一供应商下也不唯一。唯一键是 `(supplier_id, supplier_code, supplier_product_name)`。`currency` 固定为 `AUD`。入库的 `supplier_id` 可空；出库和退库必须为空。`app_settings` 目前只有 `last_operator`，没有预插行。
 
-单位不是表，是物料 `unit` 上的 check 约束（`piece`、`set`、`unit`、`roll`、`bottle`、`box`、`pair`、`metre`、`kg`、`litre`、`sqm`）。`pair` 显示为「对」。若已经执行过初版迁移，再执行 `supabase/migrations/20261118014817_add_pair_unit.sql` 才能保存单位为「对」的物料。操作人、领用人和工单号是流水上的文本，没有单独主档。
+单位不是表，是物料 `unit` 上的 check 约束（`piece`、`set`、`unit`、`roll`、`bottle`、`box`、`pair`、`length`、`metre`、`kg`、`litre`、`sqm`）。`pair` 显示为「对」，`length` 显示为「条」。若已经执行过初版迁移，再执行 `supabase/migrations/20261118014817_add_pair_unit.sql` 才能保存单位为「对」的物料。已经有库的还要再执行 `supabase/migrations/20261118031912_add_length_unit.sql` 才能保存单位为「条」的物料。操作人、领用人和工单号是流水上的文本，没有单独主档。
 
 `materials.location` 可以不填。列仍然是 `not null`，默认 `''`，空字符串表示没有库位，`materials_location_len` 为 `char_length(location) <= 40`。若库是在这条约束放宽之前建的，再执行 `supabase/migrations/20261118023000_optional_location.sql`。这份迁移也会把库位「待定」改成空字符串。
 
@@ -65,6 +65,7 @@ supabase/
   migrations/20261118012637_init.sql              建表、RLS、Realtime。没有种子数据
   migrations/20261118014817_add_pair_unit.sql     已有库补上单位「对」
   migrations/20261118023000_optional_location.sql 已有库把库位改成可空字符串
+  migrations/20261118031912_add_length_unit.sql   已有库补上单位「条」
   authenticated-only.sql                          以后收紧为仅登录用户。现在不要执行
 src/
   lib/supabase/            客户端、公开钥匙、登录开关

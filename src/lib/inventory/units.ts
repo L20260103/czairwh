@@ -7,6 +7,7 @@ export const UNITS = [
   { code: "bottle", label: "瓶", en: "bottle", integer: true },
   { code: "box", label: "箱", en: "box", integer: true },
   { code: "pair", label: "对", en: "pair", integer: true },
+  { code: "length", label: "条", en: "length", integer: true },
   { code: "metre", label: "米", en: "m", integer: false },
   { code: "kg", label: "千克", en: "kg", integer: false },
   { code: "litre", label: "升", en: "L", integer: false },
