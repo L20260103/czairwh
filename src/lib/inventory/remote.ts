@@ -1,6 +1,7 @@
 import { MAX_LENGTH } from "@/lib/inventory/inventory";
 import type {
   Category,
+  Employee,
   InventoryState,
   Material,
   Movement,
@@ -21,6 +22,7 @@ const CATEGORY_COLUMNS = "id, name_zh, name_en, parent_id, sort_order, created_a
 const SUPPLIER_COLUMNS = "id, name, contact, notes, updated_at";
 const OFFER_COLUMNS =
   "id, material_id, supplier_id, supplier_code, supplier_product_name, price_ex_gst, currency, notes, updated_at";
+const EMPLOYEE_COLUMNS = "id, name, active, sort_order, created_at";
 
 type DbError = { message: string; code?: string };
 
@@ -140,6 +142,19 @@ function mapOffer(value: unknown): SupplierProduct {
   };
 }
 
+function mapEmployee(value: unknown): Employee {
+  const row = asRecord(value, "员工");
+  const name = asString(row.name, "员工姓名").trim();
+  if (name.length < 1 || name.length > 40) throw new Error("共享库存里的员工姓名无效。");
+  return {
+    id: asString(row.id, "员工"),
+    name,
+    active: asBoolean(row.active, "员工状态"),
+    sortOrder: asNumber(row.sort_order, "员工排序"),
+    createdAt: asString(row.created_at, "员工时间"),
+  };
+}
+
 function mapMovement(value: unknown): Movement {
   const row = asRecord(value, "流水");
   return {
@@ -207,6 +222,10 @@ function failure(error: DbError, fallback: string): RemoteFailure {
       return { ok: false, error: "同一供应商下，相同货号和对方品名的报价已存在。", code: error.code };
     }
     if (message.includes("categories_")) return { ok: false, error: "同级已有同名类别。", code: error.code };
+    if (message.includes("employees")) return { ok: false, error: "已经有同名员工。", code: error.code };
+  }
+  if (error.code === "23514" && message?.includes("employees")) {
+    return { ok: false, error: "员工姓名需要 1 到 40 个字。", code: error.code };
   }
   if (error.code === "23503") return { ok: false, error: "还有关联记录，不能这样改。", code: error.code };
   if (error.code === "23514" && message?.includes("stock_movements_")) {
@@ -223,8 +242,8 @@ function failure(error: DbError, fallback: string): RemoteFailure {
 }
 
 export async function loadRemoteState(): Promise<{ ok: true; state: InventoryState } | RemoteFailure> {
-  // 六张表同时翻页。每一张表内部按顺序要下一页，直到短页。
-  const [categories, materials, suppliers, offers, movements, settings] = await Promise.all([
+  // 七张表同时翻页。每一张表内部按顺序要下一页，直到短页。
+  const [categories, materials, suppliers, offers, movements, employees, settings] = await Promise.all([
     fetchAllRows((from, to) =>
       supabase
         .from("categories")
@@ -242,11 +261,20 @@ export async function loadRemoteState(): Promise<{ ok: true; state: InventorySta
     ),
     fetchAllRows((from, to) => supabase.from("stock_movements").select(MOVEMENT_COLUMNS).order("at").order("id").range(from, to)),
     fetchAllRows((from, to) =>
+      supabase.from("employees").select(EMPLOYEE_COLUMNS).order("sort_order").order("name").order("id").range(from, to),
+    ),
+    fetchAllRows((from, to) =>
       supabase.from("app_settings").select("setting_key, setting_value").order("setting_key").range(from, to),
     ),
   ]);
   const firstError =
-    categories.error ?? materials.error ?? suppliers.error ?? offers.error ?? movements.error ?? settings.error;
+    categories.error ??
+    materials.error ??
+    suppliers.error ??
+    offers.error ??
+    movements.error ??
+    employees.error ??
+    settings.error;
   if (firstError) return failure(firstError, "没能读取共享库存");
   try {
     const last = (settings.data ?? []).find((row) => {
@@ -261,6 +289,7 @@ export async function loadRemoteState(): Promise<{ ok: true; state: InventorySta
         suppliers: (suppliers.data ?? []).map(mapSupplier),
         supplierProducts: (offers.data ?? []).map(mapOffer),
         movements: (movements.data ?? []).map(mapMovement),
+        employees: (employees.data ?? []).map(mapEmployee),
         lastOperator: typeof last?.setting_value === "string" ? last.setting_value : "",
       },
     };
@@ -364,6 +393,45 @@ export async function updateMovementText(
     return { ok: true, movement: mapMovement(data) };
   } catch (caught) {
     return { ok: false, error: caught instanceof Error ? caught.message : "改流水后的返回数据无法识别。" };
+  }
+}
+
+export async function insertEmployee(employee: Employee): Promise<{ ok: true; employee: Employee } | RemoteFailure> {
+  const { data, error } = await supabase
+    .from("employees")
+    .insert({
+      id: employee.id,
+      name: employee.name,
+      active: employee.active,
+      sort_order: employee.sortOrder,
+      created_at: employee.createdAt,
+    })
+    .select(EMPLOYEE_COLUMNS)
+    .single();
+  if (error) return failure(error, "没能保存员工");
+  try {
+    return { ok: true, employee: mapEmployee(data) };
+  } catch (caught) {
+    return { ok: false, error: caught instanceof Error ? caught.message : "保存员工后的返回数据无法识别。" };
+  }
+}
+
+export async function updateEmployee(employee: Employee): Promise<{ ok: true; employee: Employee } | RemoteFailure> {
+  const { data, error } = await supabase
+    .from("employees")
+    .update({
+      name: employee.name,
+      active: employee.active,
+      sort_order: employee.sortOrder,
+    })
+    .eq("id", employee.id)
+    .select(EMPLOYEE_COLUMNS)
+    .single();
+  if (error) return failure(error, "没能保存员工");
+  try {
+    return { ok: true, employee: mapEmployee(data) };
+  } catch (caught) {
+    return { ok: false, error: caught instanceof Error ? caught.message : "保存员工后的返回数据无法识别。" };
   }
 }
 

@@ -2,6 +2,7 @@ import { useRef, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 
 import { FormField } from "@/components/common";
+import { EmployeeNameSelect } from "@/components/EmployeeNameSelect";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -36,9 +37,6 @@ export function MovementEditDialog({
   const receipt = movement.type === "receipt";
   const unitLabel = material ? getUnit(material.unit).label : "";
   const signed = movement.type === "issue" ? `−${formatQty(movement.quantity)}` : `+${formatQty(movement.quantity)}`;
-  const operators = [...new Set(state.movements.map((row) => row.operator).filter(Boolean))];
-  const recipients = [...new Set(state.movements.map((row) => row.recipient).filter(Boolean))];
-
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (savingRef.current || saving) return;
@@ -106,23 +104,17 @@ export function MovementEditDialog({
               label="操作人 / Operator"
               htmlFor="movement-edit-operator"
               error={errors.operator}
-              hint={`必填，最多 ${MAX_LENGTH.operator} 个字。`}
+              hint={`从在职员工里选。必填，最多 ${MAX_LENGTH.operator} 个字。不在名单上的当前值会保留。`}
             >
-              <Input
+              <EmployeeNameSelect
                 id="movement-edit-operator"
+                label="操作人"
                 value={operator}
-                onChange={(event) => setOperator(event.target.value)}
-                list="movement-edit-operators"
-                className="h-11"
-                autoComplete="name"
-                aria-invalid={!!errors.operator}
-                data-editable="true"
+                onChange={setOperator}
+                employees={state.employees}
+                placeholder="选择操作人"
+                invalid={!!errors.operator}
               />
-              <datalist id="movement-edit-operators">
-                {operators.map((name) => (
-                  <option key={name} value={name} />
-                ))}
-              </datalist>
             </FormField>
 
             <FormField
@@ -159,24 +151,28 @@ export function MovementEditDialog({
                     : `退库可以不填，最多 ${MAX_LENGTH.recipient} 个字。`
               }
             >
-              <Input
-                id="movement-edit-recipient"
-                value={receipt ? "" : recipient}
-                onChange={(event) => setRecipient(event.target.value)}
-                list="movement-edit-recipients"
-                placeholder={receipt ? "入库无领用人" : movement.type === "return" ? "可以不填" : "谁拿走这批料"}
-                className="h-11"
-                autoComplete="off"
-                readOnly={receipt}
-                disabled={receipt}
-                aria-invalid={!!errors.recipient}
-                data-editable={receipt ? "false" : "true"}
-              />
-              <datalist id="movement-edit-recipients">
-                {recipients.map((name) => (
-                  <option key={name} value={name} />
-                ))}
-              </datalist>
+              {receipt ? (
+                <Input
+                  id="movement-edit-recipient"
+                  value=""
+                  placeholder="入库无领用人"
+                  className="h-11"
+                  readOnly
+                  disabled
+                  data-editable="false"
+                />
+              ) : (
+                <EmployeeNameSelect
+                  id="movement-edit-recipient"
+                  label="领用人"
+                  value={recipient}
+                  onChange={setRecipient}
+                  employees={state.employees}
+                  allowEmpty={movement.type === "return"}
+                  placeholder={movement.type === "return" ? "可以不填" : "谁拿走这批料"}
+                  invalid={!!errors.recipient}
+                />
+              )}
             </FormField>
 
             <FormField

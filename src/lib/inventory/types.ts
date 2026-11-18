@@ -72,12 +72,22 @@ export interface DerivedMovement extends Movement {
   derivedAfter: number;
 }
 
+/** 公司员工。操作人和领用人从在职名单里选，流水里仍只存姓名。 */
+export interface Employee {
+  id: string;
+  name: string;
+  active: boolean;
+  sortOrder: number;
+  createdAt: string;
+}
+
 export interface InventoryState {
   categories: Category[];
   materials: Material[];
   suppliers: Supplier[];
   supplierProducts: SupplierProduct[];
   movements: Movement[];
+  employees: Employee[];
   lastOperator: string;
 }
 
@@ -159,6 +169,7 @@ export type MovementTextErrors = Partial<Record<keyof MovementTextDraft | "form"
 export type MaterialErrors = Partial<Record<keyof MaterialDraft | "form" | "offers", string>>;
 export type CategoryErrors = Partial<Record<keyof CategoryDraft | "form", string>>;
 export type SupplierErrors = Partial<Record<keyof SupplierDraft | "form", string>>;
+export type EmployeeErrors = Partial<Record<"name" | "form", string>>;
 
 export type StockStatus = "untracked" | "low" | "ok";
 

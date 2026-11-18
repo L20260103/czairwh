@@ -1,12 +1,19 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
-import { categoryDeleteError, supplierDeleteError, validateCategory, validateSupplier } from "@/lib/inventory/catalog";
+import {
+  categoryDeleteError,
+  supplierDeleteError,
+  validateCategory,
+  validateEmployeeName,
+  validateSupplier,
+} from "@/lib/inventory/catalog";
 import { createEmptyState, createId, postMovement, removeMaterial, saveMaterial, validateMovementText } from "@/lib/inventory/inventory";
 import {
   deleteCategory,
   deleteMaterial,
   deleteSupplier,
   insertCategory,
+  insertEmployee,
   insertMaterial,
   insertMovement,
   insertSupplier,
@@ -14,6 +21,7 @@ import {
   rememberOperator,
   replaceMaterialOffers,
   updateCategory,
+  updateEmployee,
   updateMaterial,
   updateMovementText,
   updateSupplier,
@@ -23,6 +31,8 @@ import type {
   Category,
   CategoryDraft,
   CategoryErrors,
+  Employee,
+  EmployeeErrors,
   InventoryState,
   Material,
   MaterialDraft,
@@ -66,6 +76,11 @@ export interface InventoryContextValue {
     id?: string,
   ) => Promise<{ ok: true; supplier: Supplier } | { ok: false; errors: SupplierErrors }>;
   removeSupplier: (id: string) => Promise<{ ok: true } | { ok: false; error: string }>;
+  saveEmployee: (
+    name: string,
+    id?: string,
+  ) => Promise<{ ok: true; employee: Employee } | { ok: false; errors: EmployeeErrors }>;
+  setEmployeeActive: (id: string, active: boolean) => Promise<{ ok: true; employee: Employee } | { ok: false; error: string }>;
 }
 
 const InventoryContext = createContext<InventoryContextValue | null>(null);
@@ -290,6 +305,44 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
         if (!saved.ok) return saved;
         commit({ ...stateRef.current, suppliers: stateRef.current.suppliers.filter((supplier) => supplier.id !== id) });
         return { ok: true };
+      },
+      saveEmployee: async (name, id) => {
+        const result = validateEmployeeName(stateRef.current.employees, name, id);
+        if (!result.ok) return result;
+        if (id) {
+          const existing = stateRef.current.employees.find((employee) => employee.id === id);
+          if (!existing) return { ok: false, errors: { form: "找不到要修改的员工。" } };
+          const saved = await updateEmployee({ ...existing, name: result.name });
+          if (!saved.ok) return { ok: false, errors: { form: saved.error } };
+          const employees = stateRef.current.employees.map((employee) =>
+            employee.id === saved.employee.id ? saved.employee : employee,
+          );
+          commit({ ...stateRef.current, employees });
+          return { ok: true, employee: saved.employee };
+        }
+        const sortOrder = stateRef.current.employees.reduce((max, employee) => Math.max(max, employee.sortOrder), 0) + 1;
+        const saved = await insertEmployee({
+          id: createId(),
+          name: result.name,
+          active: true,
+          sortOrder,
+          createdAt: new Date().toISOString(),
+        });
+        if (!saved.ok) return { ok: false, errors: { form: saved.error } };
+        commit({ ...stateRef.current, employees: [...stateRef.current.employees, saved.employee] });
+        return { ok: true, employee: saved.employee };
+      },
+      setEmployeeActive: async (id, active) => {
+        const existing = stateRef.current.employees.find((employee) => employee.id === id);
+        if (!existing) return { ok: false, error: "找不到要修改的员工。" };
+        if (existing.active === active) return { ok: true, employee: existing };
+        const saved = await updateEmployee({ ...existing, active });
+        if (!saved.ok) return { ok: false, error: saved.error };
+        const employees = stateRef.current.employees.map((employee) =>
+          employee.id === saved.employee.id ? saved.employee : employee,
+        );
+        commit({ ...stateRef.current, employees });
+        return { ok: true, employee: saved.employee };
       },
     };
   }, [commit, loadError, persistError, ready, refresh, state]);
