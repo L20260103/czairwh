@@ -6,7 +6,7 @@ import { OptionSelect } from "@/components/OptionSelect";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { bilingualLabel, formatAud, movementTypeLabel } from "@/lib/format";
+import { bilingualLabel, formatAud, joinMeta, locationText, movementTypeLabel } from "@/lib/format";
 import { formatQty, getJobBalance, getOnHand, validateMovement } from "@/lib/inventory/inventory";
 import type { MovementDraft, MovementErrors, MovementType } from "@/lib/inventory/types";
 import { getUnit } from "@/lib/inventory/units";
@@ -82,7 +82,7 @@ export function MovementForm({
     const q = materialQuery.trim().toLowerCase();
     return state.materials
       .filter((m) => m.active || m.id === materialId)
-      .filter((m) => (q ? `${m.sku} ${m.nameZh} ${m.nameEn} ${m.location}`.toLowerCase().includes(q) : true))
+      .filter((m) => (q ? `${m.sku} ${m.nameZh} ${m.nameEn} ${locationText(m.location)}`.toLowerCase().includes(q) : true))
       .slice(0, 12);
   }, [materialId, materialQuery, state.materials]);
 
@@ -190,7 +190,7 @@ export function MovementForm({
                       <span>
                         <span className="block text-sm font-medium">{bilingualLabel(candidate.nameZh, candidate.nameEn)}</span>
                         <span className="block text-xs text-muted-foreground">
-                          {candidate.sku} · {candidate.location}
+                          {joinMeta([candidate.sku, locationText(candidate.location)])}
                         </span>
                       </span>
                       <span className="shrink-0 text-sm tabular-nums">
@@ -374,7 +374,7 @@ export function MovementForm({
             <div>
               <p className="text-base font-semibold">{bilingualLabel(material.nameZh, material.nameEn)}</p>
               <p className="text-xs text-[#b7c6d4]">
-                {material.sku} · {material.location}
+                {joinMeta([material.sku, locationText(material.location)])}
               </p>
             </div>
             <div data-testid="stock-preview">

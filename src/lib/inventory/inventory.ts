@@ -401,7 +401,7 @@ export function validateMaterial(
 
   const nameZh = normalizeText(draft.nameZh);
   const nameEn = normalizeText(draft.nameEn);
-  const location = normalizeText(draft.location);
+  const location = normalizeText(typeof draft.location === "string" ? draft.location : "");
   const note = normalizeText(draft.note);
   const categoryId = draft.categoryId.trim();
 
@@ -414,7 +414,6 @@ export function validateMaterial(
   if (!categoryId || categoryId === "none") errors.categoryId = "请选择类别。";
   else if (!state.categories.some((category) => category.id === categoryId)) errors.categoryId = "请选择有效的类别。";
 
-  if (!location) errors.location = "请填写库位。";
   const locationTooLong = tooLong(location, MAX_LENGTH.location, "库位");
   if (locationTooLong) errors.location = locationTooLong;
 

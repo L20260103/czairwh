@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/common";
 import { Button } from "@/components/ui/button";
 import { downloadFile, reorderCsv } from "@/lib/csv";
-import { bilingualLabel, formatAud } from "@/lib/format";
+import { bilingualLabel, formatAud, joinMeta, locationText } from "@/lib/format";
 import { categoryPath, cheapestOffers, supplierName } from "@/lib/inventory/catalog";
 import { formatQty, getReorderSuggestions } from "@/lib/inventory/inventory";
 import { getUnit } from "@/lib/inventory/units";
@@ -58,7 +58,11 @@ export function ReorderPage() {
                     <h2 className="font-semibold">{bilingualLabel(item.material.nameZh, item.material.nameEn)}</h2>
                   </div>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    {item.material.sku} · {categoryPath(state.categories, item.material.categoryId)} · {item.material.location}
+                    {joinMeta([
+                      item.material.sku,
+                      categoryPath(state.categories, item.material.categoryId),
+                      locationText(item.material.location),
+                    ])}
                   </p>
                   <ReorderPrice state={state} materialId={item.material.id} />
                 </div>

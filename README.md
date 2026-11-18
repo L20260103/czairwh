@@ -54,14 +54,18 @@ npm run preview  # 预览打包结果
 
 单位不是表，是物料 `unit` 上的 check 约束（`piece`、`set`、`unit`、`roll`、`bottle`、`box`、`pair`、`metre`、`kg`、`litre`、`sqm`）。`pair` 显示为「对」。若已经执行过初版迁移，再执行 `supabase/migrations/20261118014817_add_pair_unit.sql` 才能保存单位为「对」的物料。操作人、领用人和工单号是流水上的文本，没有单独主档。
 
+`materials.location` 可以不填。列仍然是 `not null`，默认 `''`，空字符串表示没有库位，`materials_location_len` 为 `char_length(location) <= 40`。若库是在这条约束放宽之前建的，再执行 `supabase/migrations/20261118023000_optional_location.sql`。这份迁移也会把库位「待定」改成空字符串。
+
 ## 目录结构
 
 ```
 index.html                 页面骨架
 vite.config.ts             Vite 配置（单文件打包，base 为 /czairwh/）
 supabase/
-  migrations/20261118012637_init.sql   建表、RLS、Realtime。没有种子数据
-  authenticated-only.sql               以后收紧为仅登录用户。现在不要执行
+  migrations/20261118012637_init.sql              建表、RLS、Realtime。没有种子数据
+  migrations/20261118014817_add_pair_unit.sql     已有库补上单位「对」
+  migrations/20261118023000_optional_location.sql 已有库把库位改成可空字符串
+  authenticated-only.sql                          以后收紧为仅登录用户。现在不要执行
 src/
   lib/supabase/            客户端、公开钥匙、登录开关
   lib/inventory/           校验、计算、Supabase 读写

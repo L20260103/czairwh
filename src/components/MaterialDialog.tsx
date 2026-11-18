@@ -134,8 +134,8 @@ export function MaterialDialog({ material, onClose }: { material: Material | nul
               }))}
             />
           </FormField>
-          <FormField label="库位" htmlFor="location" error={errors.location}>
-            <Input id="location" value={location} onChange={(event) => setLocation(event.target.value)} list="location-options" className="h-11" aria-invalid={!!errors.location} />
+          <FormField label="存放位置（选填） / Location (optional)" htmlFor="location" error={errors.location} hint="可以不填。最多 40 个字。">
+            <Input id="location" value={location} onChange={(event) => setLocation(event.target.value)} list="location-options" maxLength={40} className="h-11" aria-invalid={!!errors.location} />
             <datalist id="location-options">
               {LOCATION_SUGGESTIONS.map((option) => (
                 <option key={option} value={option} />

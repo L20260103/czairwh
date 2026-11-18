@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase/client";
+import { MAX_LENGTH } from "@/lib/inventory/inventory";
 import type {
   Category,
   InventoryState,
@@ -9,6 +9,7 @@ import type {
   SupplierProduct,
 } from "@/lib/inventory/types";
 import { isUnitCode } from "@/lib/inventory/units";
+import { supabase } from "@/lib/supabase/client";
 
 const MATERIAL_COLUMNS = "id, sku, name_zh, name_en, category_id, unit, location, min_stock, active, note, created_at";
 const MOVEMENT_COLUMNS =
@@ -39,6 +40,18 @@ function asOptionalString(value: unknown): string {
   if (value == null) return "";
   if (typeof value !== "string") throw new Error("共享库存里有一条文本字段无法识别。");
   return value;
+}
+
+/**
+ * 库位可以不填。null 和空字符串都是未填写。
+ * 只拒绝不是文本，或超过 40 字。空字符串不再报「库位无效」。
+ */
+export function readStoredLocation(value: unknown): string {
+  if (value == null) return "";
+  if (typeof value !== "string" || value.length > MAX_LENGTH.location) {
+    throw new Error("共享库存里的库位无效。");
+  }
+  return value.trim().replace(/\s+/g, " ");
 }
 
 function asNumber(value: unknown, label: string): number {
@@ -87,7 +100,7 @@ function mapMaterial(value: unknown): Material {
     nameEn,
     categoryId: asString(row.category_id, "类别"),
     unit,
-    location: asString(row.location, "库位"),
+    location: readStoredLocation(row.location),
     minStock: asNumber(row.min_stock, "最低库存"),
     active: asBoolean(row.active, "启用状态"),
     note: asOptionalString(row.note),
@@ -195,7 +208,7 @@ function materialRow(material: Material) {
     name_en: material.nameEn,
     category_id: material.categoryId,
     unit: material.unit,
-    location: material.location,
+    location: typeof material.location === "string" ? material.location.trim().replace(/\s+/g, " ") : "",
     min_stock: material.minStock,
     active: material.active,
     note: material.note,

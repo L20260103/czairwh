@@ -15,6 +15,26 @@ export function formatMelbourneTime(iso: string): string {
   }).format(date);
 }
 
+/** 库位文本。null 和空白都当成没填，不参与搜索命中「null」。 */
+export function locationText(location: string | null | undefined): string {
+  if (typeof location !== "string") return "";
+  return location.trim().replace(/\s+/g, " ");
+}
+
+/** 单独一格里的库位。没填时用「—」，和工单号、备注的空值一样。 */
+export function displayLocation(location: string | null | undefined): string {
+  return locationText(location) || "—";
+}
+
+/** 用「 · 」拼接非空片段。库位为空时不占一段；全部为空时返回「—」。 */
+export function joinMeta(parts: Array<string | null | undefined>): string {
+  const text = parts
+    .map((part) => (part ?? "").trim())
+    .filter((part) => part.length > 0)
+    .join(" · ");
+  return text || "—";
+}
+
 /** 中英都有时显示「中文 English」，只有一边时显示那一边。 */
 export function bilingualLabel(nameZh: string, nameEn: string): string {
   const zh = nameZh.trim();

@@ -1,7 +1,7 @@
 import { PageHeader } from "@/components/common";
 import { MovementList } from "@/components/MovementList";
 import { buttonVariants } from "@/components/ui/button";
-import { bilingualLabel, formatAud } from "@/lib/format";
+import { bilingualLabel, formatAud, joinMeta, locationText } from "@/lib/format";
 import { cheapestOffers, supplierName } from "@/lib/inventory/catalog";
 import { formatQty, getReorderSuggestions, movementsNewestFirst } from "@/lib/inventory/inventory";
 import { getUnit } from "@/lib/inventory/units";
@@ -93,7 +93,7 @@ export function DashboardPage() {
                     <div>
                       <p className="font-medium">{bilingualLabel(item.material.nameZh, item.material.nameEn)}</p>
                       <p className="text-xs text-muted-foreground">
-                        {item.material.sku} · {item.material.location}
+                        {joinMeta([item.material.sku, locationText(item.material.location)])}
                       </p>
                     </div>
                   </div>

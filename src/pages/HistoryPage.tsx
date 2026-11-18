@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/common";
 import { MovementList } from "@/components/MovementList";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { bilingualLabel } from "@/lib/format";
+import { bilingualLabel, locationText } from "@/lib/format";
 import { categoryPath, supplierName } from "@/lib/inventory/catalog";
 import { movementsNewestFirst } from "@/lib/inventory/inventory";
 import type { MovementType } from "@/lib/inventory/types";
@@ -50,6 +50,7 @@ export function HistoryPage() {
         material?.sku,
         material?.nameZh,
         material?.nameEn,
+        material ? locationText(material.location) : "",
         material ? categoryPath(state.categories, material.categoryId) : "",
         row.supplierId ? supplierName(state.suppliers, row.supplierId) : "",
         row.operator,
@@ -75,7 +76,7 @@ export function HistoryPage() {
         <Input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="搜索 SKU、名称、工单、操作人、备注"
+          placeholder="搜索 SKU、名称、库位、工单、操作人、备注"
           className="h-11 bg-white"
           aria-label="搜索流水"
         />
