@@ -3,6 +3,7 @@ import {
   ArrowLeftRight,
   Boxes,
   ClipboardList,
+  ExternalLink,
   LayoutDashboard,
   Menu,
   ScrollText,
@@ -48,6 +49,23 @@ const MOBILE_NAV_ITEMS = NAV_ITEMS.slice(0, 5);
 function isActive(pathname: string, href: string): boolean {
   if (href === "/") return pathname === "/";
   return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function TradifyLink({ className }: { className?: string }) {
+  return (
+    <a
+      href="https://go.tradifyhq.com/"
+      target="_blank"
+      rel="noopener noreferrer"
+      className={cn(
+        "inline-flex items-center gap-1 text-xs font-medium text-[#1f5f78] underline-offset-2 hover:underline",
+        className,
+      )}
+    >
+      Tradify
+      <ExternalLink className="size-3" aria-hidden />
+    </a>
+  );
 }
 
 export function Logo() {
@@ -134,7 +152,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Logo />
           </div>
           <p className="mt-4 text-sm font-medium text-[#1c3144]">正在读取共享库存…</p>
-          <p className="mt-2 text-xs leading-5 text-[#6b4423]">所有设备看同一份数据 · 未连接 Tradify/monday</p>
+          <p className="mt-2 text-xs leading-5 text-[#6b4423]">所有设备看同一份数据</p>
         </div>
       </div>
     );
@@ -166,15 +184,11 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Logo />
             <div>
               <p className="text-sm font-semibold tracking-wide">Coolzone</p>
-              <p className="text-[11px] text-[#b7c6d4]">Heating & Cooling · 库存试用</p>
+              <p className="text-[11px] text-[#b7c6d4]">Heating & Cooling</p>
             </div>
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto px-3">
+          <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-4">
             <SideNav pathname={pathname} lowCount={lowCount} />
-          </div>
-          <div className="shrink-0 border-t border-[#2d465c] px-4 py-4 text-xs leading-5 text-[#d5e2ec]">
-            <p>全员共用一份 Supabase 数据。</p>
-            <p>知道网址的人都能改。没有登录。</p>
           </div>
         </aside>
 
@@ -192,7 +206,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <SheetContent side="left" className="w-72 border-[#2d465c] bg-[#1c3144] text-[#e7eef5] sm:max-w-xs">
                   <SheetHeader>
                     <SheetTitle className="text-[#e7eef5]">Coolzone</SheetTitle>
-                    <SheetDescription className="text-[#b7c6d4]">内部库存试用</SheetDescription>
+                    <SheetDescription className="text-[#b7c6d4]">仓库库存</SheetDescription>
                   </SheetHeader>
                   <div className="px-3">
                     <SideNav pathname={pathname} lowCount={lowCount} onNavigate={() => setMenuOpen(false)} />
@@ -200,10 +214,11 @@ export function AppShell({ children }: { children: ReactNode }) {
                 </SheetContent>
               </Sheet>
               <div className="min-w-0 lg:hidden">
-                <p className="truncate text-sm font-semibold text-[#1c3144]">Coolzone 库存试用</p>
+                <p className="truncate text-sm font-semibold text-[#1c3144]">Coolzone 库存</p>
               </div>
-              <p className="hidden text-sm text-muted-foreground lg:block">墨尔本暖通仓库 · 内部试用</p>
-              <div className="ml-auto flex items-center gap-2">
+              <p className="hidden text-sm text-muted-foreground lg:block">墨尔本暖通仓库</p>
+              <div className="ml-auto flex items-center gap-3">
+                <TradifyLink />
                 <DropdownMenu>
                   <DropdownMenuTrigger render={<Button variant="outline" className="h-10 bg-white px-3" />}>
                     导出 CSV
@@ -215,13 +230,6 @@ export function AppShell({ children }: { children: ReactNode }) {
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
-            </div>
-            <div
-              data-testid="prototype-banner"
-              className="border-t border-[#ead9c4] bg-[#fbf6ee] px-3 py-2 text-xs leading-5 text-[#6b4423] lg:px-8"
-            >
-              <span className="font-semibold">试用原型 · 未连接 Tradify/monday</span>
-              <span className="ml-2 text-[#8a6240]">知道网址即可查看和修改。不会下单，也不会写入外部系统。</span>
             </div>
             {persistError ? (
               <div

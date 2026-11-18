@@ -38,7 +38,7 @@ export function DashboardPage() {
   return (
     <div>
       <PageHeader title="库存总览">
-        Coolzone Heating & Cooling 的仓库试用账。库存数字只算有过出入库记录的物料，供应商目录里还没入过库的货不算缺货。低于最低库存只统计「安装耗材」及其下级。所有设备看同一份账，新记的账使用当前时间。
+        Coolzone Heating & Cooling 的仓库账。库存数字只算有过出入库记录的物料，供应商目录里还没入过库的货不算缺货。低于最低库存只统计「安装耗材」及其下级。所有设备看同一份账，新记的账使用当前时间。
       </PageHeader>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
