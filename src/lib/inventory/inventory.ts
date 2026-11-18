@@ -1,4 +1,5 @@
 import type {
+  Category,
   DerivedMovement,
   InventoryState,
   Material,
@@ -168,20 +169,72 @@ export function getStockStatus(minStock: number, onHand: number): StockStatus {
   return toCents(onHand) < toCents(minStock) ? "low" : "ok";
 }
 
+/** 顶级耗材类别。中文名或英文名对上一个即可，不要求两个都写。 */
+export const CONSUMABLES_ROOT_NAME_ZH = "安装耗材";
+export const CONSUMABLES_ROOT_NAME_EN = "Installation Consumables";
+
+function isConsumablesRoot(category: Category): boolean {
+  if (category.parentId != null) return false;
+  const nameZh = normalizeText(category.nameZh);
+  const nameEn = normalizeText(category.nameEn);
+  return nameZh === CONSUMABLES_ROOT_NAME_ZH || nameEn === CONSUMABLES_ROOT_NAME_EN;
+}
+
 /**
- * 低于最低库存、并且至少有过一笔流水的物料，按缺口比例排序，并给出建议补货量。
- * 没入过库的目录货库存视为「不在仓库」，不算缺货，也不建议补货。
+ * 需要低库存 / 补货提醒的类别。
+ * 按 name_zh「安装耗材」或 name_en「Installation Consumables」找到顶级根，
+ * 再从每个类别沿 parent_id 往上走；能走到这个根的（含根自己）都算。
+ * 不按固定个数截断。找不到根时返回空集，任何物料都不提醒。
+ */
+export function consumableCategoryIds(categories: Category[]): Set<string> {
+  const byId = new Map(categories.map((category) => [category.id, category]));
+  const ids = new Set<string>();
+  for (const start of categories) {
+    const seen = new Set<string>();
+    let current: Category | undefined = start;
+    while (current && !seen.has(current.id)) {
+      seen.add(current.id);
+      if (isConsumablesRoot(current)) {
+        for (const id of seen) ids.add(id);
+        break;
+      }
+      current = current.parentId ? byId.get(current.parentId) : undefined;
+    }
+  }
+  return ids;
+}
+
+/**
+ * 建议补到最低库存的数量。
+ * 没入过库，或不在安装耗材子树里，一律是 0：不算缺货。
+ * 最低库存为 0 的也不补。
+ */
+export function reorderShortfall(minStock: number, onHand: number, stocked: boolean, consumable: boolean): number {
+  if (!stocked || !consumable || toCents(minStock) <= 0) return 0;
+  const shortfall = toCents(minStock) - toCents(onHand);
+  return shortfall > 0 ? fromCents(shortfall) : 0;
+}
+
+/**
+ * 低于最低库存、至少有过一笔流水、并且类别属于「安装耗材」或其下级的物料。
+ * 按缺口比例排序，并给出建议补货量。
+ * 没入过库的目录货，以及机器、风管、风口等非耗材，不算缺货，也不建议补货。
  */
 export function getReorderSuggestions(state: InventoryState): ReorderSuggestion[] {
   const totals = onHandCentsByMaterial(state);
+  const consumableIds = consumableCategoryIds(state.categories);
   return state.materials
     .map((material) => {
       const cents = totals.get(material.id);
-      if (cents === undefined) return null;
-      const onHand = fromCents(cents);
-      const shortfall = toCents(material.minStock) - toCents(onHand);
-      if (toCents(material.minStock) <= 0 || shortfall <= 0) return null;
-      return { material, onHand, suggested: fromCents(shortfall) };
+      const onHand = fromCents(cents ?? 0);
+      const suggested = reorderShortfall(
+        material.minStock,
+        onHand,
+        cents !== undefined,
+        consumableIds.has(material.categoryId),
+      );
+      if (suggested <= 0) return null;
+      return { material, onHand, suggested };
     })
     .filter((item): item is ReorderSuggestion => item !== null)
     .sort((a, b) => {
