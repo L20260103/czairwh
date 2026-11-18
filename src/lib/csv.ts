@@ -153,7 +153,7 @@ export function reorderCsv(state: InventoryState): string {
     "未含GST价格",
     "说明",
   ];
-  const explanation = "仅建议，未发送采购单。建议量=最低库存-当前库存。试用规则，未经业务访谈确认。价格是目录里的未含 GST 最低报价。";
+  const explanation = "仅建议，未发送采购单。建议量=最低库存-当前库存。价格是目录里的未含 GST 最低报价。";
   const rows = getReorderSuggestions(state).map((item) => [
     item.material.sku,
     item.material.nameZh,

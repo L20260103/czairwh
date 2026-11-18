@@ -134,25 +134,3 @@
     @apply font-sans;
   }
 }
-
-/* 页面顶部的「怎么打开这个文件」提示条（index.html 里的 .open-help）。 */
-.open-help {
-  margin: 0;
-  padding: 12px 16px;
-  background: #1c3144;
-  color: #f4efe6;
-  font: 14px/1.6 "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
-}
-.open-help p {
-  margin: 0 0 6px;
-}
-.open-help button {
-  margin-top: 4px;
-  border: 0;
-  border-radius: 8px;
-  background: #d08a45;
-  color: #1c3144;
-  font: inherit;
-  font-weight: 600;
-  padding: 6px 12px;
-}
