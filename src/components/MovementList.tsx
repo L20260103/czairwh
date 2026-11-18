@@ -1,3 +1,7 @@
+import { useState } from "react";
+
+import { MovementEditDialog } from "@/components/MovementEditDialog";
+import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { bilingualLabel, formatMelbourneTime, joinMeta, locationText, movementTypeLabel } from "@/lib/format";
 import { supplierName } from "@/lib/inventory/catalog";
@@ -29,13 +33,19 @@ export function MovementList({
   materials,
   suppliers = [],
   compact = false,
+  editable = false,
 }: {
   rows: DerivedMovement[];
   materials: Material[];
   suppliers?: Supplier[];
   compact?: boolean;
+  /** 流水页可以改操作人、工单、领用、参考和备注。 */
+  editable?: boolean;
 }) {
+  const [editingId, setEditingId] = useState<string | null>(null);
   const materialById = new Map(materials.map((m) => [m.id, m]));
+  const editing = editable ? rows.find((row) => row.id === editingId) : undefined;
+  const editingMaterial = editing ? materialById.get(editing.materialId) : undefined;
   if (rows.length === 0) {
     return <p className="px-1 py-6 text-sm text-muted-foreground">没有符合条件的流水。</p>;
   }
@@ -61,7 +71,20 @@ export function MovementList({
               const unitLabel = material ? getUnit(material.unit).label : "";
               return (
                 <TableRow key={row.id}>
-                  <TableCell className="text-muted-foreground">{formatMelbourneTime(row.at)}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    <div>{formatMelbourneTime(row.at)}</div>
+                    {editable ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="mt-1 h-8 bg-white"
+                        onClick={() => setEditingId(row.id)}
+                        aria-label={`编辑 ${formatMelbourneTime(row.at)} 的流水`}
+                      >
+                        编辑
+                      </Button>
+                    ) : null}
+                  </TableCell>
                   <TableCell>
                     <span className={cn("font-medium", typeColor(row.type))}>{movementTypeLabel(row.type)}</span>
                   </TableCell>
@@ -145,10 +168,30 @@ export function MovementList({
               </dl>
               {row.supplierId ? <p className="mt-2 text-xs text-muted-foreground">供应商 {supplierName(suppliers, row.supplierId)}</p> : null}
               {row.notes ? <p className="mt-2 text-xs leading-5 text-muted-foreground">{row.notes}</p> : null}
+              {editable ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="mt-3 h-10 w-full bg-white"
+                  onClick={() => setEditingId(row.id)}
+                  aria-label={`编辑 ${formatMelbourneTime(row.at)} 的流水`}
+                >
+                  编辑
+                </Button>
+              ) : null}
             </li>
           );
         })}
       </ul>
+      {editing ? (
+        <MovementEditDialog
+          key={editing.id}
+          movement={editing}
+          material={editingMaterial}
+          supplierLabel={editing.supplierId ? supplierName(suppliers, editing.supplierId) : ""}
+          onClose={() => setEditingId(null)}
+        />
+      ) : null}
     </>
   );
 }

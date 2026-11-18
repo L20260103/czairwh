@@ -4,6 +4,7 @@ import type {
   InventoryState,
   Material,
   Movement,
+  MovementTextDraft,
   MovementType,
   Supplier,
   SupplierProduct,
@@ -208,6 +209,16 @@ function failure(error: DbError, fallback: string): RemoteFailure {
     if (message.includes("categories_")) return { ok: false, error: "同级已有同名类别。", code: error.code };
   }
   if (error.code === "23503") return { ok: false, error: "还有关联记录，不能这样改。", code: error.code };
+  if (error.code === "23514" && message?.includes("stock_movements_")) {
+    if (message.includes("operator")) return { ok: false, error: "操作人需要 1 到 40 个字。", code: error.code };
+    if (message.includes("fields_by_type")) {
+      return { ok: false, error: "入库不能填工单或领用人；出库必须填工单和领用人；退库必须填工单。", code: error.code };
+    }
+    if (message.includes("job")) return { ok: false, error: "工单号不能超过 40 个字。", code: error.code };
+    if (message.includes("recipient")) return { ok: false, error: "领用人不能超过 40 个字。", code: error.code };
+    if (message.includes("reference")) return { ok: false, error: "参考单号不能超过 80 个字。", code: error.code };
+    if (message.includes("notes")) return { ok: false, error: "备注不能超过 200 个字。", code: error.code };
+  }
   return { ok: false, error: message ? `${fallback}（${message}）` : fallback, code: error.code };
 }
 
@@ -322,6 +333,38 @@ export async function insertMovement(movement: Movement): Promise<{ ok: true } |
   });
   if (error) return failure(error, "没能记下这笔流水");
   return { ok: true };
+}
+
+/**
+ * 只更新流水的文字列：operator、job_number、recipient、reference、notes。
+ * 数量、物料、类型、时间、变动前后和供应商不在这次更新里。
+ */
+export async function updateMovementText(
+  id: string,
+  text: MovementTextDraft,
+): Promise<{ ok: true; movement: Movement } | RemoteFailure> {
+  const changes = {
+    operator: text.operator,
+    job_number: text.jobNumber,
+    recipient: text.recipient,
+    reference: text.reference,
+    notes: text.notes,
+  };
+  const { data, error } = await supabase
+    .from("stock_movements")
+    .update(changes)
+    .eq("id", id)
+    .select(MOVEMENT_COLUMNS)
+    .single();
+  if (error) {
+    if (error.code === "PGRST116") return { ok: false, error: "没能改这笔流水。它可能已被删除，或当前账号不能更新。", code: error.code };
+    return failure(error, "没能改这笔流水");
+  }
+  try {
+    return { ok: true, movement: mapMovement(data) };
+  } catch (caught) {
+    return { ok: false, error: caught instanceof Error ? caught.message : "改流水后的返回数据无法识别。" };
+  }
 }
 
 export async function rememberOperator(operator: string): Promise<{ ok: true } | RemoteFailure> {

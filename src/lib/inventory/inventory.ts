@@ -8,6 +8,8 @@ import type {
   Movement,
   MovementDraft,
   MovementErrors,
+  MovementTextDraft,
+  MovementTextErrors,
   MovementType,
   ReorderSuggestion,
   StockStatus,
@@ -417,6 +419,46 @@ export function validateMovement(
   const before = onHandCents(state, normalized.materialId);
   const after = before + signedCents(normalized.type, normalized.quantity);
   return { ok: true, value: { ...normalized, before: fromCents(before), after: fromCents(after) } };
+}
+
+type ValidateMovementTextResult =
+  | { ok: true; value: MovementTextDraft }
+  | { ok: false; errors: MovementTextErrors };
+
+/**
+ * 只校验流水上可以事后改的文字：操作人、工单号、领用人、参考单号、备注。
+ * 规则和记账时相同（去空白、长度、按类型必填）。不重新计算库存。
+ */
+export function validateMovementText(type: MovementType, draft: MovementTextDraft): ValidateMovementTextResult {
+  const errors: MovementTextErrors = {};
+  const operator = normalizeText(draft.operator);
+  const jobNumber = type === "receipt" ? "" : normalizeText(draft.jobNumber);
+  const recipient = type === "receipt" ? "" : normalizeText(draft.recipient);
+  const reference = normalizeText(draft.reference);
+  const notes = normalizeText(draft.notes);
+
+  if (!operator) errors.operator = "请填写操作人。";
+  const operatorTooLong = tooLong(operator, MAX_LENGTH.operator, "操作人");
+  if (operatorTooLong) errors.operator = operatorTooLong;
+
+  if ((type === "issue" || type === "return") && !jobNumber) {
+    errors.jobNumber = type === "issue" ? "出库必须填写工单号。" : "退库必须填写工单号。";
+  }
+  const jobTooLong = tooLong(jobNumber, MAX_LENGTH.job, "工单号");
+  if (jobTooLong) errors.jobNumber = jobTooLong;
+
+  if (type === "issue" && !recipient) errors.recipient = "出库必须填写领用人。";
+  const recipientTooLong = tooLong(recipient, MAX_LENGTH.recipient, "领用人");
+  if (recipientTooLong) errors.recipient = recipientTooLong;
+
+  const referenceTooLong = tooLong(reference, MAX_LENGTH.reference, "参考单号");
+  if (referenceTooLong) errors.reference = referenceTooLong;
+
+  const notesTooLong = tooLong(notes, MAX_LENGTH.notes, "备注");
+  if (notesTooLong) errors.notes = notesTooLong;
+
+  if (Object.keys(errors).length > 0) return { ok: false, errors };
+  return { ok: true, value: { operator, jobNumber, recipient, reference, notes } };
 }
 
 export type PostMovementResult =

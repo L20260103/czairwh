@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { categoryDeleteError, supplierDeleteError, validateCategory, validateSupplier } from "@/lib/inventory/catalog";
-import { createEmptyState, createId, postMovement, removeMaterial, saveMaterial } from "@/lib/inventory/inventory";
+import { createEmptyState, createId, postMovement, removeMaterial, saveMaterial, validateMovementText } from "@/lib/inventory/inventory";
 import {
   deleteCategory,
   deleteMaterial,
@@ -15,6 +15,7 @@ import {
   replaceMaterialOffers,
   updateCategory,
   updateMaterial,
+  updateMovementText,
   updateSupplier,
 } from "@/lib/inventory/remote";
 import { supabase } from "@/lib/supabase/client";
@@ -29,6 +30,8 @@ import type {
   Movement,
   MovementDraft,
   MovementErrors,
+  MovementTextDraft,
+  MovementTextErrors,
   Supplier,
   SupplierDraft,
   SupplierErrors,
@@ -43,6 +46,10 @@ export interface InventoryContextValue {
   persistError: string | null;
   reload: () => void;
   postMovement: (draft: MovementDraft) => Promise<{ ok: true; movement: Movement } | { ok: false; errors: MovementErrors }>;
+  saveMovementText: (
+    id: string,
+    draft: MovementTextDraft,
+  ) => Promise<{ ok: true; movement: Movement } | { ok: false; errors: MovementTextErrors }>;
   saveMaterial: (
     draft: MaterialDraft,
     offers: SupplierOfferInput[],
@@ -157,6 +164,19 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
         if (!remembered.ok) setPersistError(`流水已记下，但没能记住操作人。${remembered.error}`);
         commit(result.state);
         return { ok: true, movement: result.movement };
+      },
+      saveMovementText: async (id, draft) => {
+        const existing = stateRef.current.movements.find((movement) => movement.id === id);
+        if (!existing) return { ok: false, errors: { form: "这笔流水已经不在列表里。" } };
+        const result = validateMovementText(existing.type, draft);
+        if (!result.ok) return result;
+        const saved = await updateMovementText(id, result.value);
+        if (!saved.ok) return { ok: false, errors: { form: saved.error } };
+        const movements = stateRef.current.movements.map((movement) =>
+          movement.id === saved.movement.id ? saved.movement : movement,
+        );
+        commit({ ...stateRef.current, movements });
+        return { ok: true, movement: saved.movement };
       },
       saveMaterial: async (draft, offers, id) => {
         const materialId = id ?? createId();
