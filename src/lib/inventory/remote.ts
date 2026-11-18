@@ -160,7 +160,7 @@ function failure(error: DbError, fallback: string): RemoteFailure {
 
 export async function loadRemoteState(): Promise<{ ok: true; state: InventoryState } | RemoteFailure> {
   const [categories, materials, suppliers, offers, movements, setting] = await Promise.all([
-    supabase.from("categories").select(CATEGORY_COLUMNS).order("sort_order").order("name"),
+    supabase.from("categories").select(CATEGORY_COLUMNS).order("sort_order").order("name_zh").order("name_en"),
     supabase.from("materials").select(MATERIAL_COLUMNS).order("sku"),
     supabase.from("suppliers").select(SUPPLIER_COLUMNS).order("name"),
     supabase.from("supplier_products").select(OFFER_COLUMNS).order("supplier_product_name"),
