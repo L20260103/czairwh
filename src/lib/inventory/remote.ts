@@ -157,6 +157,43 @@ function mapMovement(value: unknown): Movement {
 
 export type RemoteFailure = { ok: false; error: string; code?: string };
 
+/** PostgREST 默认单次最多返回 1000 行。range 两端都包含，所以一页是 from .. from+999。 */
+const PAGE_SIZE = 1000;
+
+type Page<T> = { data: T[] | null; error: DbError | null };
+
+/**
+ * 按调用方给定的稳定顺序把整张表读完。
+ * 某一页不足 1000 行就停止。不同表各自循环，由调用方用 Promise.all 并行。
+ */
+async function fetchAllRows<T>(loadPage: (from: number, to: number) => PromiseLike<Page<T>>): Promise<Page<T>> {
+  const rows: T[] = [];
+  let from = 0;
+  let previousTail = "";
+  for (;;) {
+    const to = from + PAGE_SIZE - 1;
+    const { data, error } = await loadPage(from, to);
+    if (error) return { data: [], error };
+    const page = data ?? [];
+    const tail = page.length > 0 ? pageIdentity(page[page.length - 1]) : "";
+    if (page.length === PAGE_SIZE && tail !== "" && tail === previousTail) {
+      return { data: [], error: { message: "分页没有向前移动，已停止以免重复读取。" } };
+    }
+    rows.push(...page);
+    if (page.length < PAGE_SIZE) return { data: rows, error: null };
+    previousTail = tail;
+    from += PAGE_SIZE;
+  }
+}
+
+function pageIdentity(row: unknown): string {
+  if (!row || typeof row !== "object") return "";
+  const record = row as Record<string, unknown>;
+  if (typeof record.id === "string") return record.id;
+  if (typeof record.setting_key === "string") return record.setting_key;
+  return "";
+}
+
 function failure(error: DbError, fallback: string): RemoteFailure {
   const message = error.message?.trim();
   if (error.code === "23505" || message.includes("duplicate key")) {
@@ -172,18 +209,36 @@ function failure(error: DbError, fallback: string): RemoteFailure {
 }
 
 export async function loadRemoteState(): Promise<{ ok: true; state: InventoryState } | RemoteFailure> {
-  const [categories, materials, suppliers, offers, movements, setting] = await Promise.all([
-    supabase.from("categories").select(CATEGORY_COLUMNS).order("sort_order").order("name_zh").order("name_en"),
-    supabase.from("materials").select(MATERIAL_COLUMNS).order("sku"),
-    supabase.from("suppliers").select(SUPPLIER_COLUMNS).order("name"),
-    supabase.from("supplier_products").select(OFFER_COLUMNS).order("supplier_product_name"),
-    supabase.from("stock_movements").select(MOVEMENT_COLUMNS).order("at").order("id"),
-    supabase.from("app_settings").select("setting_key, setting_value").eq("setting_key", "last_operator").maybeSingle(),
+  // 六张表同时翻页。每一张表内部按顺序要下一页，直到短页。
+  const [categories, materials, suppliers, offers, movements, settings] = await Promise.all([
+    fetchAllRows((from, to) =>
+      supabase
+        .from("categories")
+        .select(CATEGORY_COLUMNS)
+        .order("sort_order")
+        .order("name_zh")
+        .order("name_en")
+        .order("id")
+        .range(from, to),
+    ),
+    fetchAllRows((from, to) => supabase.from("materials").select(MATERIAL_COLUMNS).order("sku").order("id").range(from, to)),
+    fetchAllRows((from, to) => supabase.from("suppliers").select(SUPPLIER_COLUMNS).order("name").order("id").range(from, to)),
+    fetchAllRows((from, to) =>
+      supabase.from("supplier_products").select(OFFER_COLUMNS).order("supplier_product_name").order("id").range(from, to),
+    ),
+    fetchAllRows((from, to) => supabase.from("stock_movements").select(MOVEMENT_COLUMNS).order("at").order("id").range(from, to)),
+    fetchAllRows((from, to) =>
+      supabase.from("app_settings").select("setting_key, setting_value").order("setting_key").range(from, to),
+    ),
   ]);
-  const firstError = categories.error ?? materials.error ?? suppliers.error ?? offers.error ?? movements.error ?? setting.error;
+  const firstError =
+    categories.error ?? materials.error ?? suppliers.error ?? offers.error ?? movements.error ?? settings.error;
   if (firstError) return failure(firstError, "没能读取共享库存");
   try {
-    const last = setting.data as { setting_value?: unknown } | null;
+    const last = (settings.data ?? []).find((row) => {
+      const record = row as { setting_key?: unknown };
+      return record.setting_key === "last_operator";
+    }) as { setting_value?: unknown } | undefined;
     return {
       ok: true,
       state: {

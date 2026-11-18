@@ -1,17 +1,19 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
-import { EmptyState, PageHeader } from "@/components/common";
+import { EmptyState, PageHeader, ShowMore, useVisibleLimit } from "@/components/common";
 import { MaterialDialog } from "@/components/MaterialDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { bilingualLabel, formatAud, joinMeta, locationText } from "@/lib/format";
 import { categoryPath, cheapestOffers, supplierName } from "@/lib/inventory/catalog";
-import type { InventoryState, Material } from "@/lib/inventory/types";
+import type { InventoryState, Material, SupplierProduct } from "@/lib/inventory/types";
 import { getUnit } from "@/lib/inventory/units";
 import { useInventory } from "@/store/InventoryProvider";
 
-function CheapestOffer({ state, materialId }: { state: InventoryState; materialId: string }) {
-  const best = cheapestOffers(state.supplierProducts, materialId)[0];
+const NO_OFFERS: SupplierProduct[] = [];
+
+function CheapestOffer({ state, materialId, offers }: { state: InventoryState; materialId: string; offers: SupplierProduct[] }) {
+  const best = cheapestOffers(offers, materialId)[0];
   if (!best) return <p className="mt-1 text-sm text-muted-foreground">还没有供应商报价。</p>;
   return (
     <p className="mt-1 text-sm">
@@ -28,12 +30,23 @@ export function MaterialsPage() {
   /** "new" = 新增；Material = 编辑；null = 关闭。 */
   const [editing, setEditing] = useState<Material | "new" | null>(null);
 
+  const indexed = useMemo(() => {
+    const offersByMaterial = new Map<string, SupplierProduct[]>();
+    for (const offer of state.supplierProducts) {
+      const bucket = offersByMaterial.get(offer.materialId);
+      if (bucket) bucket.push(offer);
+      else offersByMaterial.set(offer.materialId, [offer]);
+    }
+    return state.materials.map((material) => ({
+      material,
+      offers: offersByMaterial.get(material.id) ?? NO_OFFERS,
+      haystack: `${material.sku} ${material.nameZh} ${material.nameEn} ${categoryPath(state.categories, material.categoryId)} ${locationText(material.location)}`.toLowerCase(),
+    }));
+  }, [state.categories, state.materials, state.supplierProducts]);
+
   const q = query.trim().toLowerCase();
-  const materials = state.materials.filter((m) =>
-    q
-      ? `${m.sku} ${m.nameZh} ${m.nameEn} ${categoryPath(state.categories, m.categoryId)} ${locationText(m.location)}`.toLowerCase().includes(q)
-      : true,
-  );
+  const materials = q ? indexed.filter((row) => row.haystack.includes(q)) : indexed;
+  const [visibleLimit, showMore] = useVisibleLimit(q);
 
   return (
     <div>
@@ -52,8 +65,11 @@ export function MaterialsPage() {
           新增物料
         </Button>
       </div>
+      <p className="mb-3 text-xs text-muted-foreground">
+        显示 {materials.length} / {state.materials.length}
+      </p>
       <ul className="grid gap-3">
-        {materials.map((material) => (
+        {materials.slice(0, visibleLimit).map(({ material, offers }) => (
           <li key={material.id} className="rounded-xl bg-white p-4 ring-1 ring-foreground/10">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
@@ -64,7 +80,7 @@ export function MaterialsPage() {
                 <p className="mt-1 text-sm text-muted-foreground">
                   {joinMeta([material.sku, categoryPath(state.categories, material.categoryId) || "未分类", locationText(material.location)])}
                 </p>
-                <CheapestOffer state={state} materialId={material.id} />
+                <CheapestOffer state={state} materialId={material.id} offers={offers} />
                 <p className="mt-1 text-sm">
                   单位 {getUnit(material.unit).label}（{getUnit(material.unit).en}） · 最低库存 {material.minStock}
                 </p>
@@ -76,6 +92,7 @@ export function MaterialsPage() {
           </li>
         ))}
       </ul>
+      {materials.length > visibleLimit ? <ShowMore onClick={showMore} /> : null}
       {materials.length === 0 ? (
         <EmptyState title={query.trim() ? "目录里没有匹配的物料" : "目录还是空的"}>
           {query.trim() ? "换个关键词，或清除搜索。" : "点「新增物料」添加第一条。如果还没有类别，要先去类别页。"}

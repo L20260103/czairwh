@@ -95,6 +95,15 @@ export function getOnHand(state: InventoryState, materialId: string): number {
   return fromCents(onHandCents(state, materialId));
 }
 
+/** 一次扫完全部流水，得到每个物料的库存（百分位）。没有流水的物料不在表里。 */
+export function onHandCentsByMaterial(state: InventoryState): Map<string, number> {
+  const totals = new Map<string, number>();
+  for (const movement of state.movements) {
+    totals.set(movement.materialId, (totals.get(movement.materialId) ?? 0) + signedCents(movement.type, movement.quantity));
+  }
+  return totals;
+}
+
 function compareByTime(a: Movement, b: Movement): number {
   const diff = Date.parse(a.at) - Date.parse(b.at);
   return diff !== 0 && Number.isFinite(diff) ? diff : a.id.localeCompare(b.id);
@@ -150,9 +159,10 @@ export function getStockStatus(minStock: number, onHand: number): StockStatus {
 
 /** 低于最低库存的物料，按缺口比例排序，并给出建议补货量。 */
 export function getReorderSuggestions(state: InventoryState): ReorderSuggestion[] {
+  const totals = onHandCentsByMaterial(state);
   return state.materials
     .map((material) => {
-      const onHand = getOnHand(state, material.id);
+      const onHand = fromCents(totals.get(material.id) ?? 0);
       const shortfall = toCents(material.minStock) - toCents(onHand);
       if (toCents(material.minStock) <= 0 || shortfall <= 0) return null;
       return { material, onHand, suggested: fromCents(shortfall) };

@@ -1,13 +1,13 @@
 import { useMemo, useState } from "react";
 
-import { EmptyState, PageHeader, StockStatusBadges } from "@/components/common";
+import { EmptyState, PageHeader, ShowMore, StockStatusBadges, useVisibleLimit } from "@/components/common";
 import { OptionSelect } from "@/components/OptionSelect";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { bilingualLabel, displayLocation, joinMeta, locationText } from "@/lib/format";
 import { categoryPath, categorySelectOptions, descendantIds } from "@/lib/inventory/catalog";
-import { formatQty, getOnHand, getStockStatus } from "@/lib/inventory/inventory";
+import { formatQty, fromCents, getStockStatus, onHandCentsByMaterial } from "@/lib/inventory/inventory";
 import type { MovementType } from "@/lib/inventory/types";
 import { getUnit } from "@/lib/inventory/units";
 import { Link, useSearchParams } from "@/lib/router";
@@ -28,31 +28,46 @@ export function InventoryPage() {
     () => ["all", ...new Set(state.materials.map((m) => locationText(m.location)))],
     [state.materials],
   );
+  const onHand = useMemo(() => onHandCentsByMaterial(state), [state]);
+  const categoryIds = useMemo(
+    () => (category === "all" ? null : descendantIds(state.categories, category)),
+    [category, state.categories],
+  );
+  const indexed = useMemo(
+    () =>
+      state.materials.map((material) => ({
+        material,
+        qty: fromCents(onHand.get(material.id) ?? 0),
+        haystack:
+          `${material.sku} ${material.nameZh} ${material.nameEn} ${categoryPath(state.categories, material.categoryId)} ${locationText(material.location)} ${material.note}`.toLowerCase(),
+      })),
+    [onHand, state.categories, state.materials],
+  );
 
-  const rows = state.materials
-    .map((material) => ({ material, qty: getOnHand(state, material.id) }))
-    .filter(({ material, qty }) => {
-      if (
-        (category !== "all" && !descendantIds(state.categories, category).has(material.categoryId)) ||
-        (location !== "all" && locationText(material.location) !== location) ||
-        (lowOnly && getStockStatus(material.minStock, qty) !== "low")
-      )
-        return false;
-      const q = query.trim().toLowerCase();
-      if (q) {
-        return `${material.sku} ${material.nameZh} ${material.nameEn} ${categoryPath(state.categories, material.categoryId)} ${locationText(material.location)} ${material.note}`
-          .toLowerCase()
-          .includes(q);
-      }
-      return true;
-    })
-    .sort((a, b) => {
-      // 低于最低库存的排前面，其余按 SKU。
-      const rankA = getStockStatus(a.material.minStock, a.qty) === "low" ? 0 : 1;
-      const rankB = getStockStatus(b.material.minStock, b.qty) === "low" ? 0 : 1;
-      if (rankA !== rankB) return rankA - rankB;
-      return a.material.sku.localeCompare(b.material.sku);
-    });
+  const q = query.trim().toLowerCase();
+  const rows = useMemo(
+    () =>
+      indexed
+        .filter(({ material, qty, haystack }) => {
+          if (
+            (categoryIds && !categoryIds.has(material.categoryId)) ||
+            (location !== "all" && locationText(material.location) !== location) ||
+            (lowOnly && getStockStatus(material.minStock, qty) !== "low")
+          )
+            return false;
+          return q ? haystack.includes(q) : true;
+        })
+        .sort((a, b) => {
+          // 低于最低库存的排前面，其余按 SKU。
+          const rankA = getStockStatus(a.material.minStock, a.qty) === "low" ? 0 : 1;
+          const rankB = getStockStatus(b.material.minStock, b.qty) === "low" ? 0 : 1;
+          if (rankA !== rankB) return rankA - rankB;
+          return a.material.sku.localeCompare(b.material.sku);
+        }),
+    [categoryIds, indexed, location, lowOnly, q],
+  );
+  const [visibleLimit, showMore] = useVisibleLimit(`${q}|${category}|${location}|${lowOnly}`);
+  const visibleRows = rows.length > visibleLimit ? rows.slice(0, visibleLimit) : rows;
 
   return (
     <div>
@@ -129,7 +144,7 @@ export function InventoryPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {rows.map(({ material, qty }) => (
+                {visibleRows.map(({ material, qty }) => (
                   <TableRow key={material.id}>
                     <TableCell>
                       <div className="font-medium">{bilingualLabel(material.nameZh, material.nameEn)}</div>
@@ -158,7 +173,7 @@ export function InventoryPage() {
             </Table>
           </div>
           <ul className="grid gap-3 lg:hidden">
-            {rows.map(({ material, qty }) => (
+            {visibleRows.map(({ material, qty }) => (
               <li key={material.id} className="rounded-xl bg-white p-4 ring-1 ring-foreground/10">
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -185,6 +200,7 @@ export function InventoryPage() {
               </li>
             ))}
           </ul>
+          {rows.length > visibleRows.length ? <ShowMore onClick={showMore} /> : null}
         </>
       )}
     </div>
