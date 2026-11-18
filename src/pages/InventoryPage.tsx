@@ -8,7 +8,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { bilingualLabel, displayLocation, joinMeta, locationText } from "@/lib/format";
 import { categoryPath, categorySelectOptions, descendantIds } from "@/lib/inventory/catalog";
 import { specSearchText, specSummary } from "@/lib/inventory/specs";
-import { formatQty, fromCents, getStockStatus, onHandCentsByMaterial, stockedMaterialIds } from "@/lib/inventory/inventory";
+import {
+  consumableCategoryIds,
+  formatQty,
+  fromCents,
+  onHandCentsByMaterial,
+  reorderShortfall,
+  stockedMaterialIds,
+} from "@/lib/inventory/inventory";
 import type { MovementType } from "@/lib/inventory/types";
 import { getUnit } from "@/lib/inventory/units";
 import { Link, useSearchParams } from "@/lib/router";
@@ -28,6 +35,7 @@ export function InventoryPage() {
   const categories = useMemo(() => categorySelectOptions(state.categories), [state.categories]);
   const onHand = useMemo(() => onHandCentsByMaterial(state), [state]);
   const stockedIds = useMemo(() => stockedMaterialIds(state), [state]);
+  const consumableIds = useMemo(() => consumableCategoryIds(state.categories), [state.categories]);
   // 默认只看仓库里真正入过库的物料。库存用到 0 的仍留下；纯目录货要打开「显示全部物料」才出现。
   const universe = useMemo(
     () => (showAll ? state.materials : state.materials.filter((material) => stockedIds.has(material.id))),
@@ -49,30 +57,31 @@ export function InventoryPage() {
       universe.map((material) => ({
         material,
         stocked: stockedIds.has(material.id),
+        consumable: consumableIds.has(material.categoryId),
         qty: fromCents(onHand.get(material.id) ?? 0),
         haystack:
           `${material.sku} ${material.nameZh} ${material.nameEn} ${categoryPath(state.categories, material.categoryId)} ${locationText(material.location)} ${material.note} ${specSearchText(material.specs)}`.toLowerCase(),
       })),
-    [onHand, state.categories, stockedIds, universe],
+    [consumableIds, onHand, state.categories, stockedIds, universe],
   );
 
   const q = query.trim().toLowerCase();
   const rows = useMemo(
     () =>
       indexed
-        .filter(({ material, qty, haystack, stocked }) => {
+        .filter(({ material, qty, haystack, stocked, consumable }) => {
           if (
             (categoryIds && !categoryIds.has(material.categoryId)) ||
             (location !== "all" && locationText(material.location) !== location) ||
-            (lowOnly && (!stocked || getStockStatus(material.minStock, qty) !== "low"))
+            (lowOnly && reorderShortfall(material.minStock, qty, stocked, consumable) <= 0)
           )
             return false;
           return q ? haystack.includes(q) : true;
         })
         .sort((a, b) => {
-          // 低于最低库存的在库物料排前面，其余按 SKU。没入过库的不按缺货排。
-          const rankA = a.stocked && getStockStatus(a.material.minStock, a.qty) === "low" ? 0 : 1;
-          const rankB = b.stocked && getStockStatus(b.material.minStock, b.qty) === "low" ? 0 : 1;
+          // 需要补货的安装耗材排前面，其余按 SKU。非耗材和没入过库的不按缺货排。
+          const rankA = reorderShortfall(a.material.minStock, a.qty, a.stocked, a.consumable) > 0 ? 0 : 1;
+          const rankB = reorderShortfall(b.material.minStock, b.qty, b.stocked, b.consumable) > 0 ? 0 : 1;
           if (rankA !== rankB) return rankA - rankB;
           return a.material.sku.localeCompare(b.material.sku);
         }),
@@ -85,8 +94,8 @@ export function InventoryPage() {
     <div>
       <PageHeader title="库存">
         {showAll
-          ? "正在连同还没入过库的目录物料一起显示。没记过流水的不标成缺货。数量来自流水，不在这里直接改。名称显示为「中文 English」。"
-          : "只列出在本仓库有过出入库记录的物料，数量用到 0 的也会留下。供应商目录里还没入过库的货不在这里。数量来自流水，不在这里直接改。低于最低库存的排在前面。名称显示为「中文 English」。"}
+          ? "正在连同还没入过库的目录物料一起显示。没记过流水的不标成缺货。只有「安装耗材」及其下级会标成低于最低，机器、风管和风口等显示「不提醒」。数量来自流水，不在这里直接改。名称显示为「中文 English」。"
+          : "只列出在本仓库有过出入库记录的物料，数量用到 0 的也会留下。供应商目录里还没入过库的货不在这里。只有「安装耗材」及其下级会标成低于最低，其他类别显示「不提醒」。数量来自流水，不在这里直接改。需要补货的排在前面。名称显示为「中文 English」。"}
       </PageHeader>
       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         <Input
@@ -178,7 +187,7 @@ export function InventoryPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {visibleRows.map(({ material, qty, stocked }) => (
+                {visibleRows.map(({ material, qty, stocked, consumable }) => (
                   <TableRow key={material.id}>
                     <TableCell>
                       <div className="font-medium">{bilingualLabel(material.nameZh, material.nameEn)}</div>
@@ -193,7 +202,13 @@ export function InventoryPage() {
                     </TableCell>
                     <TableCell className="tabular-nums">{formatQty(material.minStock)}</TableCell>
                     <TableCell>
-                      <StockStatusBadges minStock={material.minStock} qty={qty} active={material.active} stocked={stocked} />
+                      <StockStatusBadges
+                        minStock={material.minStock}
+                        qty={qty}
+                        active={material.active}
+                        stocked={stocked}
+                        consumable={consumable}
+                      />
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
@@ -208,7 +223,7 @@ export function InventoryPage() {
             </Table>
           </div>
           <ul className="grid gap-3 lg:hidden">
-            {visibleRows.map(({ material, qty, stocked }) => (
+            {visibleRows.map(({ material, qty, stocked, consumable }) => (
               <li key={material.id} className="rounded-xl bg-white p-4 ring-1 ring-foreground/10">
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -225,7 +240,13 @@ export function InventoryPage() {
                     {formatQty(qty)}
                     <span className="ml-1 text-sm font-normal text-muted-foreground">{getUnit(material.unit).label}</span>
                   </p>
-                  <StockStatusBadges minStock={material.minStock} qty={qty} active={material.active} stocked={stocked} />
+                  <StockStatusBadges
+                    minStock={material.minStock}
+                    qty={qty}
+                    active={material.active}
+                    stocked={stocked}
+                    consumable={consumable}
+                  />
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">最低 {formatQty(material.minStock)}</p>
                 <div className="mt-3 grid grid-cols-3 gap-2">

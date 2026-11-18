@@ -2,13 +2,13 @@ import { formatAud, formatMelbourneTime, locationText, movementTypeLabel } from 
 import { categoryPath, cheapestOffers, supplierName } from "@/lib/inventory/catalog";
 import { flattenedSpecKeys, specCsvCells, uniqueSpecHeaders } from "@/lib/inventory/specs";
 import {
+  consumableCategoryIds,
   formatQty,
-  fromCents,
   getOnHand,
   getReorderSuggestions,
   getStockStatus,
+  reorderShortfall,
   stockedMaterialIds,
-  toCents,
   withDerivedBalances,
 } from "@/lib/inventory/inventory";
 import type { InventoryState, Material } from "@/lib/inventory/types";
@@ -33,8 +33,9 @@ function cheapestText(state: InventoryState, materialId: string): [string, strin
   return [supplierName(state.suppliers, best.supplierId), best.supplierCode, best.supplierProductName, formatAud(best.priceExGst)];
 }
 
-function statusText(minStock: number, onHand: number, active: boolean, stocked: boolean): string {
+function statusText(minStock: number, onHand: number, active: boolean, stocked: boolean, consumable: boolean): string {
   if (!stocked) return active ? "未入过库" : "已停用；未入过库";
+  if (!consumable) return active ? "不提醒" : "已停用；不提醒";
   const status = getStockStatus(minStock, onHand);
   const text = status === "low" ? "低于最低库存" : status === "untracked" ? "未设最低库存" : "正常";
   return active ? text : `已停用；${text}`;
@@ -64,12 +65,13 @@ export function inventorySnapshotCsv(state: InventoryState): string {
     "其余参数",
   ];
   const stockedIds = stockedMaterialIds(state);
+  const consumableIds = consumableCategoryIds(state.categories);
   const rows = materials.map((material) => {
     const stocked = stockedIds.has(material.id);
+    const consumable = consumableIds.has(material.categoryId);
     const onHand = getOnHand(state, material.id);
-    const shortfall = toCents(material.minStock) - toCents(onHand);
-    // 没入过库的目录货不算缺货，建议补货量记 0。
-    const suggested = stocked && shortfall > 0 ? fromCents(shortfall) : 0;
+    // 没入过库的目录货，以及安装耗材以外的物料，不算缺货，建议补货量记 0。
+    const suggested = reorderShortfall(material.minStock, onHand, stocked, consumable);
     const [nameZh, nameEn] = materialNames(material);
     return [
       material.sku,
@@ -80,8 +82,8 @@ export function inventorySnapshotCsv(state: InventoryState): string {
       locationText(material.location),
       formatQty(material.minStock),
       formatQty(onHand),
-      statusText(material.minStock, onHand, material.active, stocked),
-      formatQty(Math.max(0, suggested)),
+      statusText(material.minStock, onHand, material.active, stocked, consumable),
+      formatQty(suggested),
       ...cheapestText(state, material.id),
       material.note,
       ...specCsvCells(material.specs, specKeys),

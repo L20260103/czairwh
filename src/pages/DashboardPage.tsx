@@ -30,7 +30,7 @@ export function DashboardPage() {
   const stockedCount = state.materials.reduce((count, material) => count + (stockedIds.has(material.id) ? 1 : 0), 0);
   const stats = [
     { href: "/inventory", label: "在库物料", value: String(stockedCount), note: "有过出入库，数量为 0 仍算" },
-    { href: "/reorder", label: "低于最低库存", value: String(reorder.length), note: "只算在库物料，不会下单" },
+    { href: "/reorder", label: "低于最低库存", value: String(reorder.length), note: "只算在库的安装耗材，不会下单" },
     { href: "/history", label: "流水笔数", value: String(state.movements.length), note: "只追加，不能改旧账" },
     { href: "/move", label: "记住的操作人", value: state.lastOperator || "未填写", note: "不是登录账号" },
   ];
@@ -38,7 +38,7 @@ export function DashboardPage() {
   return (
     <div>
       <PageHeader title="库存总览">
-        Coolzone Heating & Cooling 的仓库试用账。库存数字只算有过出入库记录的物料，供应商目录里还没入过库的货不算缺货。所有设备看同一份账，新记的账使用当前时间。
+        Coolzone Heating & Cooling 的仓库试用账。库存数字只算有过出入库记录的物料，供应商目录里还没入过库的货不算缺货。低于最低库存只统计「安装耗材」及其下级。所有设备看同一份账，新记的账使用当前时间。
       </PageHeader>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -86,7 +86,7 @@ export function DashboardPage() {
             </Link>
           </div>
           {reorder.length === 0 ? (
-            <p className="text-sm text-muted-foreground">目前没有低于最低库存的在库物料。</p>
+            <p className="text-sm text-muted-foreground">目前没有低于最低库存的在库耗材。</p>
           ) : (
             <ul className="grid gap-3">
               {reorder.slice(0, 5).map((item) => (

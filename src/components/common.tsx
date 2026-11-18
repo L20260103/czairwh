@@ -40,19 +40,27 @@ export function PageHeader({ title, children }: { title: string; children?: Reac
   );
 }
 
-/** 库存状态标记。没入过库的目录货不标成低于最低。 */
+/**
+ * 库存状态标记。
+ * 没入过库的目录货不标成低于最低。
+ * 安装耗材以外的在库物料不标低于最低，也不标未监控，改标「不提醒」。
+ */
 export function StockStatusBadges({
   minStock,
   qty,
   active,
   stocked = true,
+  consumable = false,
 }: {
   minStock: number;
   qty: number;
   active: boolean;
   stocked?: boolean;
+  /** 类别在「安装耗材」子树里。只有这些在库物料才做低库存提醒。 */
+  consumable?: boolean;
 }) {
-  const status = stocked ? getStockStatus(minStock, qty) : "untracked";
+  const status = stocked && consumable ? getStockStatus(minStock, qty) : "untracked";
+  const exempt = stocked && !consumable;
   return (
     <span className="inline-flex flex-wrap gap-1">
       {active ? null : <Badge variant="secondary">已停用</Badge>}
@@ -67,7 +75,8 @@ export function StockStatusBadges({
           正常
         </Badge>
       ) : null}
-      {active && stocked && status === "untracked" ? <Badge variant="secondary">未监控</Badge> : null}
+      {active && stocked && consumable && status === "untracked" ? <Badge variant="secondary">未监控</Badge> : null}
+      {exempt ? <Badge variant="secondary">不提醒</Badge> : null}
     </span>
   );
 }
