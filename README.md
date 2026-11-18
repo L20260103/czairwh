@@ -49,10 +49,11 @@ npm run preview  # 预览打包结果
 | `supplier_products` | `id`，`material_id`，`supplier_id`，`supplier_code`，`supplier_product_name`，`price_ex_gst`，`currency`，`notes`，`updated_at` |
 | `stock_movements` | `id`，`at`，`type`，`material_id`，`quantity`，`before_qty`，`after_qty`，`operator`，`job_number`，`recipient`，`supplier_id`，`reference`，`notes` |
 | `app_settings` | `setting_key`，`setting_value`，`updated_at` |
+| `employees` | `id`，`name`（唯一，1–40 字），`active`，`sort_order`，`created_at` |
 
 `supplier_code` 即使在同一供应商下也不唯一。唯一键是 `(supplier_id, supplier_code, supplier_product_name)`。`currency` 固定为 `AUD`。入库的 `supplier_id` 可空；出库和退库必须为空。`app_settings` 目前只有 `last_operator`，没有预插行。
 
-单位不是表，是物料 `unit` 上的 check 约束（`piece`、`set`、`unit`、`roll`、`bottle`、`box`、`pair`、`length`、`metre`、`kg`、`litre`、`sqm`）。`pair` 显示为「对」，`length` 显示为「条」。若已经执行过初版迁移，再执行 `supabase/migrations/20261118014817_add_pair_unit.sql` 才能保存单位为「对」的物料。已经有库的还要再执行 `supabase/migrations/20261118031912_add_length_unit.sql` 才能保存单位为「条」的物料。操作人、领用人和工单号是流水上的文本，没有单独主档。
+单位不是表，是物料 `unit` 上的 check 约束（`piece`、`set`、`unit`、`roll`、`bottle`、`box`、`pair`、`length`、`metre`、`kg`、`litre`、`sqm`）。`pair` 显示为「对」，`length` 显示为「条」。若已经执行过初版迁移，再执行 `supabase/migrations/20261118014817_add_pair_unit.sql` 才能保存单位为「对」的物料。已经有库的还要再执行 `supabase/migrations/20261118031912_add_length_unit.sql` 才能保存单位为「条」的物料。工单号仍是流水上的手填文本。操作人和领用人从 `employees` 的在职名单里选（按 `sort_order`）；不在名单上的旧值，例如「待补」，会继续显示，直到改选别人。员工页可以添加、改名和停用，不删除行。
 
 `materials.location` 可以不填。列仍然是 `not null`，默认 `''`，空字符串表示没有库位，`materials_location_len` 为 `char_length(location) <= 40`。若库是在这条约束放宽之前建的，再执行 `supabase/migrations/20261118023000_optional_location.sql`。这份迁移也会把库位「待定」改成空字符串。
 
@@ -71,7 +72,7 @@ src/
   lib/supabase/            客户端、公开钥匙、登录开关
   lib/inventory/           校验、计算、Supabase 读写
   components/AuthGate.tsx  登录门占位，没有挂到 App 上
-  pages/                   总览、库存、出入库、流水、待补货、物料、供应商、类别
+  pages/                   总览、库存、出入库、流水、待补货、物料、供应商、类别、员工
 reference/                 原始文件，不参与打包
 ```
 

@@ -2,6 +2,7 @@ import { useMemo, useRef, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 
 import { FormField } from "@/components/common";
+import { EmployeeNameSelect } from "@/components/EmployeeNameSelect";
 import { OptionSelect } from "@/components/OptionSelect";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -248,29 +249,40 @@ export function MovementForm({
           ) : null}
 
           {type === "issue" ? (
-            <FormField label="领用人" htmlFor="recipient" error={fieldError("recipient")}>
-              <Input
+            <FormField
+              label="领用人"
+              htmlFor="recipient"
+              error={fieldError("recipient")}
+              hint="从在职员工里选。不在名单上的旧值会留在这里，直到你改选别人。"
+            >
+              <EmployeeNameSelect
                 id="recipient"
+                label="领用人"
                 value={recipient}
-                onChange={(event) => setRecipient(event.target.value)}
-                list="recipients"
+                onChange={setRecipient}
+                employees={state.employees}
                 placeholder="谁拿走这批料"
-                className="h-11"
-                autoComplete="off"
-                aria-invalid={!!fieldError("recipient")}
+                invalid={!!fieldError("recipient")}
               />
             </FormField>
           ) : null}
 
           {type === "return" ? (
-            <FormField label="退回人（可选）" htmlFor="recipient" error={fieldError("recipient")}>
-              <Input
+            <FormField
+              label="退回人（可选）"
+              htmlFor="recipient"
+              error={fieldError("recipient")}
+              hint="可以不填。从在职员工里选，或保留原来的名字。"
+            >
+              <EmployeeNameSelect
                 id="recipient"
+                label="退回人"
                 value={recipient}
-                onChange={(event) => setRecipient(event.target.value)}
+                onChange={setRecipient}
+                employees={state.employees}
+                allowEmpty
                 placeholder="可以不填"
-                className="h-11"
-                autoComplete="off"
+                invalid={!!fieldError("recipient")}
               />
             </FormField>
           ) : null}
@@ -320,27 +332,17 @@ export function MovementForm({
             label="操作人"
             htmlFor="operator"
             error={fieldError("operator")}
-            hint="没有登录。这个名字只写进流水，不能证明是谁操作的。"
+            hint="从在职员工里选。不在名单上的旧值会留在这里，直到你改选别人。没有登录，这个名字不能证明是谁操作的。"
           >
-            <Input
+            <EmployeeNameSelect
               id="operator"
+              label="操作人"
               value={operator}
-              onChange={(event) => setOperator(event.target.value)}
-              list="operators"
-              className="h-11"
-              autoComplete="name"
-              aria-invalid={!!fieldError("operator")}
+              onChange={setOperator}
+              employees={state.employees}
+              placeholder="选择操作人"
+              invalid={!!fieldError("operator")}
             />
-            <datalist id="operators">
-              {[...new Set(state.movements.map((movement) => movement.operator).filter(Boolean))].map((name) => (
-                <option key={name} value={name} />
-              ))}
-            </datalist>
-            <datalist id="recipients">
-              {[...new Set(state.movements.map((movement) => movement.recipient).filter(Boolean))].map((name) => (
-                <option key={name} value={name} />
-              ))}
-            </datalist>
           </FormField>
 
           <FormField label="备注（可选）" htmlFor="notes" error={fieldError("notes")}>

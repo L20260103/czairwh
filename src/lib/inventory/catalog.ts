@@ -2,6 +2,8 @@ import type {
   Category,
   CategoryDraft,
   CategoryErrors,
+  Employee,
+  EmployeeErrors,
   Supplier,
   SupplierDraft,
   SupplierErrors,
@@ -23,6 +25,7 @@ const LIMITS = {
   productName: 120,
   notes: 200,
   sortOrder: 100_000,
+  employee: 40,
 };
 
 function tooLong(value: string, max: number, label: string): string | null {
@@ -274,4 +277,33 @@ export function cheapestOffers(products: SupplierProduct[], materialId: string):
 
 export function supplierName(suppliers: Supplier[], supplierId: string): string {
   return suppliers.find((supplier) => supplier.id === supplierId)?.name ?? "已缺失供应商";
+}
+
+/** 员工按 sort_order，再按姓名。下拉和员工页用同一顺序。 */
+export function compareEmployees(a: Employee, b: Employee): number {
+  return a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, "en") || a.id.localeCompare(b.id);
+}
+
+type EmployeeNameResult = { ok: true; name: string } | { ok: false; errors: EmployeeErrors };
+
+/** 员工姓名：去掉多余空白，1 到 40 字，不能和现有姓名重复。 */
+export function validateEmployeeName(employees: Employee[], name: string, editingId?: string): EmployeeNameResult {
+  const errors: EmployeeErrors = {};
+  if (editingId && !employees.some((employee) => employee.id === editingId)) errors.form = "找不到要修改的员工。";
+  const normalized = normalizeText(name);
+  if (!normalized) errors.name = "请填写姓名。";
+  const nameTooLong = tooLong(normalized, LIMITS.employee, "姓名");
+  if (nameTooLong) errors.name = nameTooLong;
+  if (
+    normalized &&
+    employees.some(
+      (employee) =>
+        employee.id !== editingId &&
+        normalizeText(employee.name).localeCompare(normalized, "en", { sensitivity: "accent" }) === 0,
+    )
+  ) {
+    errors.name = "已经有同名员工。";
+  }
+  if (Object.keys(errors).length > 0) return { ok: false, errors };
+  return { ok: true, name: normalized };
 }

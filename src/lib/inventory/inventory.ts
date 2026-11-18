@@ -43,6 +43,7 @@ export function createEmptyState(): InventoryState {
     suppliers: [],
     supplierProducts: [],
     movements: [],
+    employees: [],
     lastOperator: "",
   };
 }

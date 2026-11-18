@@ -1,5 +1,6 @@
 import { AppShell } from "@/components/AppShell";
 import { CategoriesPage } from "@/pages/CategoriesPage";
+import { EmployeesPage } from "@/pages/EmployeesPage";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { HistoryPage } from "@/pages/HistoryPage";
 import { InventoryPage } from "@/pages/InventoryPage";
@@ -20,6 +21,7 @@ function CurrentPage() {
   if (pathname.startsWith("/materials")) return <MaterialsPage />;
   if (pathname.startsWith("/suppliers")) return <SuppliersPage />;
   if (pathname.startsWith("/categories")) return <CategoriesPage />;
+  if (pathname.startsWith("/employees")) return <EmployeesPage />;
   return <DashboardPage />;
 }
 
