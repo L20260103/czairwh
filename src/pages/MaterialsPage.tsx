@@ -4,7 +4,7 @@ import { EmptyState, PageHeader } from "@/components/common";
 import { MaterialDialog } from "@/components/MaterialDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { bilingualLabel, formatAud } from "@/lib/format";
+import { bilingualLabel, formatAud, joinMeta, locationText } from "@/lib/format";
 import { categoryPath, cheapestOffers, supplierName } from "@/lib/inventory/catalog";
 import type { InventoryState, Material } from "@/lib/inventory/types";
 import { getUnit } from "@/lib/inventory/units";
@@ -31,14 +31,14 @@ export function MaterialsPage() {
   const q = query.trim().toLowerCase();
   const materials = state.materials.filter((m) =>
     q
-      ? `${m.sku} ${m.nameZh} ${m.nameEn} ${categoryPath(state.categories, m.categoryId)} ${m.location}`.toLowerCase().includes(q)
+      ? `${m.sku} ${m.nameZh} ${m.nameEn} ${categoryPath(state.categories, m.categoryId)} ${locationText(m.location)}`.toLowerCase().includes(q)
       : true,
   );
 
   return (
     <div>
       <PageHeader title="物料目录">
-        这里维护 SKU、中英文名、类别、单位、库位、最低库存和供应商报价。中英文至少填一个，两边都有时显示为「中文 English」。改最低库存不会改变现存数量。已有流水的物料不能删除，也不能改 SKU 或单位。
+        这里维护 SKU、中英文名、类别、单位、库位、最低库存和供应商报价。中英文至少填一个，两边都有时显示为「中文 English」。库位可以不填。改最低库存不会改变现存数量。已有流水的物料不能删除，也不能改 SKU 或单位。
       </PageHeader>
       <div className="mb-4 flex flex-col gap-2 sm:flex-row">
         <Input
@@ -62,7 +62,7 @@ export function MaterialsPage() {
                   {material.active ? null : <span className="text-xs text-muted-foreground">已停用</span>}
                 </div>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {material.sku} · {categoryPath(state.categories, material.categoryId) || "未分类"} · {material.location}
+                  {joinMeta([material.sku, categoryPath(state.categories, material.categoryId) || "未分类", locationText(material.location)])}
                 </p>
                 <CheapestOffer state={state} materialId={material.id} />
                 <p className="mt-1 text-sm">

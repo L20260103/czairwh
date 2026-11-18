@@ -1,4 +1,4 @@
-import { formatAud, formatMelbourneTime, movementTypeLabel } from "@/lib/format";
+import { formatAud, formatMelbourneTime, locationText, movementTypeLabel } from "@/lib/format";
 import { categoryPath, cheapestOffers, supplierName } from "@/lib/inventory/catalog";
 import {
   formatQty,
@@ -70,7 +70,7 @@ export function inventorySnapshotCsv(state: InventoryState): string {
         nameEn,
         categoryPath(state.categories, material.categoryId),
         getUnit(material.unit).label,
-        material.location,
+        locationText(material.location),
         formatQty(material.minStock),
         formatQty(onHand),
         statusText(material.minStock, onHand, material.active),
@@ -150,7 +150,7 @@ export function reorderCsv(state: InventoryState): string {
     item.material.nameEn,
     categoryPath(state.categories, item.material.categoryId),
     getUnit(item.material.unit).label,
-    item.material.location,
+    locationText(item.material.location),
     formatQty(item.onHand),
     formatQty(item.material.minStock),
     formatQty(item.suggested),

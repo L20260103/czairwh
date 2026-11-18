@@ -1,5 +1,5 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { bilingualLabel, formatMelbourneTime, movementTypeLabel } from "@/lib/format";
+import { bilingualLabel, formatMelbourneTime, joinMeta, locationText, movementTypeLabel } from "@/lib/format";
 import { supplierName } from "@/lib/inventory/catalog";
 import { formatQty } from "@/lib/inventory/inventory";
 import type { DerivedMovement, Material, MovementType, Supplier } from "@/lib/inventory/types";
@@ -67,7 +67,7 @@ export function MovementList({
                   </TableCell>
                   <TableCell>
                     <div className="font-medium">{material ? bilingualLabel(material.nameZh, material.nameEn) : "已缺失物料"}</div>
-                    <div className="text-xs text-muted-foreground">{material?.sku}</div>
+                    <div className="text-xs text-muted-foreground">{joinMeta([material?.sku, material ? locationText(material.location) : ""])}</div>
                   </TableCell>
                   <TableCell className={cn("font-medium tabular-nums", typeColor(row.type))}>
                     {signedQty(row.type, row.quantity)} {unitLabel}
@@ -108,7 +108,7 @@ export function MovementList({
                 <div>
                   <p className={cn("text-sm font-semibold", typeColor(row.type))}>{movementTypeLabel(row.type)}</p>
                   <p className="mt-0.5 font-medium">{material ? bilingualLabel(material.nameZh, material.nameEn) : "已缺失物料"}</p>
-                  <p className="text-xs text-muted-foreground">{material?.sku}</p>
+                  <p className="text-xs text-muted-foreground">{joinMeta([material?.sku, material ? locationText(material.location) : ""])}</p>
                 </div>
                 <p className={cn("text-lg font-semibold tabular-nums", typeColor(row.type))}>
                   {signedQty(row.type, row.quantity)}

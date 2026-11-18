@@ -5,7 +5,7 @@ import { OptionSelect } from "@/components/OptionSelect";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { bilingualLabel } from "@/lib/format";
+import { bilingualLabel, displayLocation, joinMeta, locationText } from "@/lib/format";
 import { categoryPath, categorySelectOptions, descendantIds } from "@/lib/inventory/catalog";
 import { formatQty, getOnHand, getStockStatus } from "@/lib/inventory/inventory";
 import type { MovementType } from "@/lib/inventory/types";
@@ -24,20 +24,23 @@ export function InventoryPage() {
   const [lowOnly, setLowOnly] = useState(params.get("low") === "1");
 
   const categories = useMemo(() => categorySelectOptions(state.categories), [state.categories]);
-  const locations = useMemo(() => ["all", ...new Set(state.materials.map((m) => m.location))], [state.materials]);
+  const locations = useMemo(
+    () => ["all", ...new Set(state.materials.map((m) => locationText(m.location)))],
+    [state.materials],
+  );
 
   const rows = state.materials
     .map((material) => ({ material, qty: getOnHand(state, material.id) }))
     .filter(({ material, qty }) => {
       if (
         (category !== "all" && !descendantIds(state.categories, category).has(material.categoryId)) ||
-        (location !== "all" && material.location !== location) ||
+        (location !== "all" && locationText(material.location) !== location) ||
         (lowOnly && getStockStatus(material.minStock, qty) !== "low")
       )
         return false;
       const q = query.trim().toLowerCase();
       if (q) {
-        return `${material.sku} ${material.nameZh} ${material.nameEn} ${categoryPath(state.categories, material.categoryId)} ${material.location} ${material.note}`
+        return `${material.sku} ${material.nameZh} ${material.nameEn} ${categoryPath(state.categories, material.categoryId)} ${locationText(material.location)} ${material.note}`
           .toLowerCase()
           .includes(q);
       }
@@ -74,7 +77,7 @@ export function InventoryPage() {
           label="库位"
           value={location}
           onChange={setLocation}
-          options={locations.map((l) => ({ value: l, label: l === "all" ? "全部库位" : l }))}
+          options={locations.map((l) => ({ value: l, label: l === "all" ? "全部库位" : displayLocation(l) }))}
         />
         <Button
           type="button"
@@ -133,7 +136,7 @@ export function InventoryPage() {
                       <div className="mt-1 text-xs text-muted-foreground">{material.sku}</div>
                     </TableCell>
                     <TableCell>{categoryPath(state.categories, material.categoryId)}</TableCell>
-                    <TableCell>{material.location}</TableCell>
+                    <TableCell>{displayLocation(material.location)}</TableCell>
                     <TableCell className="text-base font-semibold tabular-nums">
                       {formatQty(qty)}{" "}
                       <span className="text-xs font-normal text-muted-foreground">{getUnit(material.unit).label}</span>
@@ -162,7 +165,7 @@ export function InventoryPage() {
                     <p className="text-xs text-muted-foreground">{material.sku}</p>
                     <h2 className="font-semibold">{bilingualLabel(material.nameZh, material.nameEn)}</h2>
                     <p className="text-xs text-muted-foreground">
-                      {categoryPath(state.categories, material.categoryId)} · {material.location}
+                      {joinMeta([categoryPath(state.categories, material.categoryId), locationText(material.location)])}
                     </p>
                   </div>
                 </div>

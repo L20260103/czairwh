@@ -68,7 +68,7 @@ create table public.materials (
   name_en text not null default '',
   category_id uuid not null,
   unit text not null,
-  location text not null,
+  location text not null default '',
   min_stock numeric(7, 2) not null,
   active boolean not null default true,
   note text not null default '',
@@ -80,7 +80,7 @@ create table public.materials (
   constraint materials_name_zh_len check (char_length(name_zh) <= 80),
   constraint materials_name_en_len check (char_length(name_en) <= 120),
   constraint materials_name_present check (char_length(btrim(name_zh)) > 0 or char_length(btrim(name_en)) > 0),
-  constraint materials_location_len check (char_length(location) between 1 and 40),
+  constraint materials_location_len check (char_length(location) <= 40),
   constraint materials_note_len check (char_length(note) <= 200),
   constraint materials_unit_known check (
     unit in ('piece', 'set', 'unit', 'roll', 'bottle', 'box', 'metre', 'kg', 'litre', 'sqm')

@@ -18,6 +18,7 @@ export interface Material {
   nameEn: string;
   categoryId: string;
   unit: UnitCode;
+  /** 存放位置。空字符串表示未填；数据库列仍是 not null。 */
   location: string;
   minStock: number;
   active: boolean;
@@ -98,6 +99,7 @@ export interface MaterialDraft {
   nameEn: string;
   categoryId: string;
   unit: string;
+  /** 存放位置。空白会在保存时收成空字符串。 */
   location: string;
   minStock: string;
   active: boolean;
