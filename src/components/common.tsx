@@ -1,8 +1,34 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { getStockStatus } from "@/lib/inventory/inventory";
+
+/** 长列表先画出这么多行，点「显示更多」再加一截。搜索仍先在全部行上做。 */
+export const VISIBLE_ROW_STEP = 150;
+
+/** 筛选条件变了就回到第一截，避免换关键词后还画着上一轮展开的几千行。 */
+export function useVisibleLimit(resetKey: string, step = VISIBLE_ROW_STEP): [number, () => void] {
+  const [limit, setLimit] = useState(step);
+  const [seenKey, setSeenKey] = useState(resetKey);
+  if (seenKey !== resetKey) {
+    setSeenKey(resetKey);
+    setLimit(step);
+  }
+  const activeLimit = seenKey === resetKey ? limit : step;
+  return [activeLimit, () => setLimit((current) => current + step)];
+}
+
+export function ShowMore({ onClick }: { onClick: () => void }) {
+  return (
+    <div className="mt-4 flex justify-center">
+      <Button type="button" variant="outline" className="h-11 bg-white px-4" onClick={onClick}>
+        显示更多 / Show more
+      </Button>
+    </div>
+  );
+}
 
 /** 页面标题 + 说明。 */
 export function PageHeader({ title, children }: { title: string; children?: ReactNode }) {

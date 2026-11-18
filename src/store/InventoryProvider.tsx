@@ -76,6 +76,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   const timer = useRef<number | undefined>(undefined);
   stateRef.current = state;
 
+  // 首次打开、realtime、回到页面，都重新调用 loadRemoteState。分页只写在那一个函数里。
   const refresh = useCallback(async () => {
     const token = ++revision.current;
     let result: Awaited<ReturnType<typeof loadRemoteState>>;
