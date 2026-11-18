@@ -1,13 +1,13 @@
-import { useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useMemo, useRef, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 
 import { FormField } from "@/components/common";
+import { OptionSelect } from "@/components/OptionSelect";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { movementTypeLabel } from "@/lib/format";
+import { bilingualLabel, formatAud, movementTypeLabel } from "@/lib/format";
 import { formatQty, getJobBalance, getOnHand, validateMovement } from "@/lib/inventory/inventory";
-import { SAMPLE_JOBS, SAMPLE_OPERATORS, SAMPLE_RECIPIENTS, SAMPLE_SUPPLIERS } from "@/lib/inventory/sampleData";
 import type { MovementDraft, MovementErrors, MovementType } from "@/lib/inventory/types";
 import { getUnit } from "@/lib/inventory/units";
 import { cn } from "@/lib/utils";
@@ -18,19 +18,6 @@ const MOVEMENT_TYPES: { id: MovementType; label: string; hint: string }[] = [
   { id: "issue", label: "出库", hint: "领到工单上" },
   { id: "return", label: "退库", hint: "工单余料退回" },
 ];
-
-/** 小圆角按钮：点一下把示例值填进输入框。 */
-function QuickFill({ children, onClick }: { children: ReactNode; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="rounded-full border border-[#d5dee6] bg-white px-2.5 py-1 text-left text-xs text-[#1c3144] hover:border-[#1f5f78]"
-    >
-      {children}
-    </button>
-  );
-}
 
 /** 入库 / 出库 / 退库表单 + 右侧预览。 */
 export function MovementForm({
@@ -50,9 +37,10 @@ export function MovementForm({
   const [materialId, setMaterialId] = useState(initialMaterialExists ? initialMaterialId : "");
   const [materialQuery, setMaterialQuery] = useState("");
   const [quantity, setQuantity] = useState("");
-  const [operator, setOperator] = useState(state.lastOperator || SAMPLE_OPERATORS[0]);
+  const [operator, setOperator] = useState(state.lastOperator);
   const [jobNumber, setJobNumber] = useState("");
   const [recipient, setRecipient] = useState("");
+  const [supplierId, setSupplierId] = useState("none");
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
   const [submitted, setSubmitted] = useState(false);
@@ -66,7 +54,17 @@ export function MovementForm({
     onMaterialChange(id);
   }
 
-  const draft: MovementDraft = { type, materialId, quantity, operator, jobNumber, recipient, reference, notes };
+  const draft: MovementDraft = {
+    type,
+    materialId,
+    quantity,
+    operator,
+    jobNumber,
+    recipient,
+    supplierId: supplierId === "none" ? "" : supplierId,
+    reference,
+    notes,
+  };
   // 每次渲染都校验一遍，用来显示预览和错误。
   const validation = validateMovement(state, draft, new Date().toISOString());
   const errors: MovementErrors = validation.ok ? {} : validation.errors;
@@ -84,11 +82,11 @@ export function MovementForm({
     const q = materialQuery.trim().toLowerCase();
     return state.materials
       .filter((m) => m.active || m.id === materialId)
-      .filter((m) => (q ? `${m.sku} ${m.name} ${m.category} ${m.location}`.toLowerCase().includes(q) : true))
+      .filter((m) => (q ? `${m.sku} ${m.nameZh} ${m.nameEn} ${m.location}`.toLowerCase().includes(q) : true))
       .slice(0, 12);
   }, [materialId, materialQuery, state.materials]);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitted(true);
     if (submittingRef.current || submitting) return;
@@ -99,7 +97,7 @@ export function MovementForm({
     submittingRef.current = true;
     setSubmitting(true);
     try {
-      const result = postMovement(draft);
+      const result = await postMovement(draft);
       if (!result.ok) {
         const message = result.errors.form ?? result.errors.quantity ?? result.errors.jobNumber ?? "没能记账";
         setSubmitError(message);
@@ -190,10 +188,9 @@ export function MovementForm({
                       aria-pressed={selected}
                     >
                       <span>
-                        <span className="block text-sm font-medium">{candidate.name}</span>
+                        <span className="block text-sm font-medium">{bilingualLabel(candidate.nameZh, candidate.nameEn)}</span>
                         <span className="block text-xs text-muted-foreground">
                           {candidate.sku} · {candidate.location}
-                          {candidate.sample ? " · 示例数据" : ""}
                         </span>
                       </span>
                       <span className="shrink-0 text-sm tabular-nums">
@@ -233,24 +230,17 @@ export function MovementForm({
               label="工单号"
               htmlFor="job-number"
               error={fieldError("jobNumber", jobNumber.trim().length > 0)}
-              hint="手填。示例工单可点下面的虚构单号，真实单号规则还没定。"
+              hint="手填。真实单号规则还没定。"
             >
               <Input
                 id="job-number"
                 value={jobNumber}
                 onChange={(event) => setJobNumber(event.target.value)}
-                placeholder="例如 CZ-JOB-2401 示例·Southbank公寓"
+                placeholder="例如 CZ-JOB-2401"
                 className="h-11"
                 autoComplete="off"
                 aria-invalid={!!fieldError("jobNumber", jobNumber.trim().length > 0)}
               />
-              <div className="flex flex-wrap gap-1.5">
-                {SAMPLE_JOBS.map((job) => (
-                  <QuickFill key={job} onClick={() => setJobNumber(job)}>
-                    {job}
-                  </QuickFill>
-                ))}
-              </div>
             </FormField>
           ) : null}
 
@@ -266,13 +256,6 @@ export function MovementForm({
                 autoComplete="off"
                 aria-invalid={!!fieldError("recipient")}
               />
-              <div className="flex flex-wrap gap-1.5">
-                {SAMPLE_RECIPIENTS.map((name) => (
-                  <QuickFill key={name} onClick={() => setRecipient(name)}>
-                    {name}
-                  </QuickFill>
-                ))}
-              </div>
             </FormField>
           ) : null}
 
@@ -300,17 +283,33 @@ export function MovementForm({
                 id="reference"
                 value={reference}
                 onChange={(event) => setReference(event.target.value)}
-                placeholder="例如 示例·南区铜管供应 DN-1102"
+                placeholder="例如送货单 DN-1102"
                 className="h-11"
                 autoComplete="off"
               />
-              <div className="flex flex-wrap gap-1.5">
-                {SAMPLE_SUPPLIERS.map((supplier) => (
-                  <QuickFill key={supplier} onClick={() => setReference(supplier)}>
-                    {supplier}
-                  </QuickFill>
-                ))}
-              </div>
+            </FormField>
+          ) : null}
+
+          {type === "receipt" ? (
+            <FormField label="供应商（可选）" htmlFor="movement-supplier" error={fieldError("supplierId")} hint="入库可以记下是哪家供应商来的货。">
+              <OptionSelect
+                id="movement-supplier"
+                label="供应商"
+                value={supplierId}
+                onChange={setSupplierId}
+                options={[
+                  { value: "none", label: state.suppliers.length === 0 ? "还没有供应商" : "不指定供应商" },
+                  ...state.suppliers.map((supplier) => {
+                    const offer = state.supplierProducts
+                      .filter((item) => item.supplierId === supplier.id && item.materialId === materialId)
+                      .sort((a, b) => a.priceExGst - b.priceExGst)[0];
+                    const label = offer
+                      ? `${supplier.name}${offer.supplierCode ? ` · ${offer.supplierCode}` : ""} · ${formatAud(offer.priceExGst)}`
+                      : supplier.name;
+                    return { value: supplier.id, label };
+                  }),
+                ]}
+              />
             </FormField>
           ) : null}
 
@@ -330,22 +329,15 @@ export function MovementForm({
               aria-invalid={!!fieldError("operator")}
             />
             <datalist id="operators">
-              {SAMPLE_OPERATORS.map((name) => (
+              {[...new Set(state.movements.map((movement) => movement.operator).filter(Boolean))].map((name) => (
                 <option key={name} value={name} />
               ))}
             </datalist>
             <datalist id="recipients">
-              {SAMPLE_RECIPIENTS.map((name) => (
+              {[...new Set(state.movements.map((movement) => movement.recipient).filter(Boolean))].map((name) => (
                 <option key={name} value={name} />
               ))}
             </datalist>
-            <div className="flex flex-wrap gap-1.5">
-              {SAMPLE_OPERATORS.map((name) => (
-                <QuickFill key={name} onClick={() => setOperator(name)}>
-                  {name}
-                </QuickFill>
-              ))}
-            </div>
           </FormField>
 
           <FormField label="备注（可选）" htmlFor="notes" error={fieldError("notes")}>
@@ -380,10 +372,9 @@ export function MovementForm({
         {material ? (
           <div className="mt-3 space-y-3">
             <div>
-              <p className="text-base font-semibold">{material.name}</p>
+              <p className="text-base font-semibold">{bilingualLabel(material.nameZh, material.nameEn)}</p>
               <p className="text-xs text-[#b7c6d4]">
                 {material.sku} · {material.location}
-                {material.sample ? " · 示例数据" : ""}
               </p>
             </div>
             <div data-testid="stock-preview">

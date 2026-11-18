@@ -1,11 +1,25 @@
-import { OriginBadge, PageHeader } from "@/components/common";
+import { PageHeader } from "@/components/common";
 import { MovementList } from "@/components/MovementList";
 import { buttonVariants } from "@/components/ui/button";
-import { formatQty, getOnHand, getReorderSuggestions, movementsNewestFirst } from "@/lib/inventory/inventory";
+import { bilingualLabel, formatAud } from "@/lib/format";
+import { cheapestOffers, supplierName } from "@/lib/inventory/catalog";
+import { formatQty, getReorderSuggestions, movementsNewestFirst } from "@/lib/inventory/inventory";
 import { getUnit } from "@/lib/inventory/units";
 import { Link } from "@/lib/router";
 import { cn } from "@/lib/utils";
+import type { InventoryState } from "@/lib/inventory/types";
 import { useInventory } from "@/store/InventoryProvider";
+
+function CheapestLine({ state, materialId }: { state: InventoryState; materialId: string }) {
+  const best = cheapestOffers(state.supplierProducts, materialId)[0];
+  if (!best) return <p className="mt-1 text-xs text-muted-foreground">还没有供应商报价。</p>;
+  return (
+    <p className="mt-1 text-xs text-muted-foreground">
+      最低 {supplierName(state.suppliers, best.supplierId)}
+      {best.supplierCode ? ` · ${best.supplierCode}` : ""} · {formatAud(best.priceExGst)} 未含 GST
+    </p>
+  );
+}
 
 /** 总览（#/）。 */
 export function DashboardPage() {
@@ -13,7 +27,7 @@ export function DashboardPage() {
   const reorder = getReorderSuggestions(state);
   const recent = movementsNewestFirst(state).slice(0, 6);
   const stats = [
-    { href: "/inventory", label: "在册物料", value: String(state.materials.length), note: "含示例与本机新增" },
+    { href: "/inventory", label: "在册物料", value: String(state.materials.length), note: "全员同一份目录" },
     { href: "/reorder", label: "低于最低库存", value: String(reorder.length), note: "只是建议，不会下单" },
     { href: "/history", label: "流水笔数", value: String(state.movements.length), note: "只追加，不能改旧账" },
     { href: "/move", label: "记住的操作人", value: state.lastOperator || "未填写", note: "不是登录账号" },
@@ -22,7 +36,7 @@ export function DashboardPage() {
   return (
     <div>
       <PageHeader title="库存总览">
-        Coolzone Heating & Cooling 的仓库试用账。示例流水写在 2026-11-01 至 2026-11-06（墨尔本时间），你新记的账使用当前时间。
+        Coolzone Heating & Cooling 的仓库试用账。所有设备看同一份库存，新记的账使用当前时间。
       </PageHeader>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -59,7 +73,7 @@ export function DashboardPage() {
               全部流水
             </Link>
           </div>
-          <MovementList rows={recent} materials={state.materials} compact />
+          <MovementList rows={recent} materials={state.materials} suppliers={state.suppliers} compact />
         </section>
 
         <section className="rounded-xl bg-white p-4 ring-1 ring-foreground/10 xl:col-span-2">
@@ -77,18 +91,18 @@ export function DashboardPage() {
                 <li key={item.material.id} className="border-b border-[#e6eef3] pb-3 last:border-0">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="font-medium">{item.material.name}</p>
+                      <p className="font-medium">{bilingualLabel(item.material.nameZh, item.material.nameEn)}</p>
                       <p className="text-xs text-muted-foreground">
                         {item.material.sku} · {item.material.location}
                       </p>
                     </div>
-                    <OriginBadge sample={item.material.sample} />
                   </div>
                   <p className="mt-1 text-sm tabular-nums">
                     现存 {formatQty(item.onHand)} / 最低 {formatQty(item.material.minStock)}{" "}
                     {getUnit(item.material.unit).label}
                     <span className="ml-2 text-[#8a4b16]">建议 {formatQty(item.suggested)}</span>
                   </p>
+                  <CheapestLine state={state} materialId={item.material.id} />
                   <Link
                     href={`/move?type=receipt&material=${item.material.id}`}
                     className="mt-1 inline-block text-sm text-[#1f5f78]"
@@ -103,13 +117,8 @@ export function DashboardPage() {
       </div>
 
       <section className="mt-4 rounded-xl border border-[#ead9c4] bg-[#fbf6ee] p-4 text-sm leading-6 text-[#6b4423]">
-        <p className="font-medium">这些数字只在这台浏览器里。</p>
-        <p>
-          {
-            "使用 localStorage，同事打开自己的电脑看不到。没有服务器备份。刷新后，只要不清除站点数据，记录还在。换浏览器或无痕窗口会回到示例数据。 带「示例数据」的物料数量、员工、工单和供应商都是虚构的。当前库存合计示例：22mm 铜管 "
-          }
-          {formatQty(getOnHand(state, "mat-cz-cu-22"))} 米。
-        </p>
+        <p className="font-medium">这些数字是全员共用的。</p>
+        <p>存在 Supabase 里。别的电脑打开同一个网址会看到同一份库存和流水。目前没有登录，知道网址的人都能改。不会写入 Tradify 或 monday。</p>
       </section>
     </div>
   );

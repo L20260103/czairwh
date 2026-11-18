@@ -1,9 +1,8 @@
-import { OriginBadge } from "@/components/common";
-import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatMelbourneTime, movementTypeLabel } from "@/lib/format";
+import { bilingualLabel, formatMelbourneTime, movementTypeLabel } from "@/lib/format";
+import { supplierName } from "@/lib/inventory/catalog";
 import { formatQty } from "@/lib/inventory/inventory";
-import type { DerivedMovement, Material, MovementType } from "@/lib/inventory/types";
+import type { DerivedMovement, Material, MovementType, Supplier } from "@/lib/inventory/types";
 import { getUnit } from "@/lib/inventory/units";
 import { cn } from "@/lib/utils";
 
@@ -28,10 +27,12 @@ function signedQty(type: MovementType, quantity: number): string {
 export function MovementList({
   rows,
   materials,
+  suppliers = [],
   compact = false,
 }: {
   rows: DerivedMovement[];
   materials: Material[];
+  suppliers?: Supplier[];
   compact?: boolean;
 }) {
   const materialById = new Map(materials.map((m) => [m.id, m]));
@@ -65,7 +66,7 @@ export function MovementList({
                     <span className={cn("font-medium", typeColor(row.type))}>{movementTypeLabel(row.type)}</span>
                   </TableCell>
                   <TableCell>
-                    <div className="font-medium">{material?.name ?? "已缺失物料"}</div>
+                    <div className="font-medium">{material ? bilingualLabel(material.nameZh, material.nameEn) : "已缺失物料"}</div>
                     <div className="text-xs text-muted-foreground">{material?.sku}</div>
                   </TableCell>
                   <TableCell className={cn("font-medium tabular-nums", typeColor(row.type))}>
@@ -77,7 +78,6 @@ export function MovementList({
                   {compact ? null : (
                     <TableCell>
                       <div>{row.operator}</div>
-                      {row.sample ? <span className="text-[10px] text-[#8a4b16]">示例数据</span> : null}
                     </TableCell>
                   )}
                   {compact ? null : (
@@ -88,7 +88,7 @@ export function MovementList({
                   )}
                   {compact ? null : (
                     <TableCell>
-                      <div>{row.reference || "—"}</div>
+                      <div>{[row.supplierId ? supplierName(suppliers, row.supplierId) : "", row.reference].filter(Boolean).join(" · ") || "—"}</div>
                       <div className="text-xs text-muted-foreground">{row.notes || "—"}</div>
                     </TableCell>
                   )}
@@ -107,7 +107,7 @@ export function MovementList({
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className={cn("text-sm font-semibold", typeColor(row.type))}>{movementTypeLabel(row.type)}</p>
-                  <p className="mt-0.5 font-medium">{material?.name ?? "已缺失物料"}</p>
+                  <p className="mt-0.5 font-medium">{material ? bilingualLabel(material.nameZh, material.nameEn) : "已缺失物料"}</p>
                   <p className="text-xs text-muted-foreground">{material?.sku}</p>
                 </div>
                 <p className={cn("text-lg font-semibold tabular-nums", typeColor(row.type))}>
@@ -143,8 +143,8 @@ export function MovementList({
                   <dd>{row.reference || "—"}</dd>
                 </div>
               </dl>
+              {row.supplierId ? <p className="mt-2 text-xs text-muted-foreground">供应商 {supplierName(suppliers, row.supplierId)}</p> : null}
               {row.notes ? <p className="mt-2 text-xs leading-5 text-muted-foreground">{row.notes}</p> : null}
-              <div className="mt-2">{row.sample ? <OriginBadge sample /> : <Badge variant="secondary">本机新增</Badge>}</div>
             </li>
           );
         })}

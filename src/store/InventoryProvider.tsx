@@ -1,101 +1,277 @@
-import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
+import { categoryDeleteError, supplierDeleteError, validateCategory, validateSupplier } from "@/lib/inventory/catalog";
+import { createEmptyState, createId, postMovement, removeMaterial, saveMaterial } from "@/lib/inventory/inventory";
 import {
-  createId,
-  postMovement,
-  removeMaterial,
-  saveMaterial,
-} from "@/lib/inventory/inventory";
-import { createSampleState } from "@/lib/inventory/sampleData";
-import { loadState, saveState, type StateSource } from "@/lib/inventory/storage";
-import type { InventoryState, Material, MaterialDraft, MaterialErrors, Movement, MovementDraft, MovementErrors } from "@/lib/inventory/types";
+  deleteCategory,
+  deleteMaterial,
+  deleteSupplier,
+  insertCategory,
+  insertMaterial,
+  insertMovement,
+  insertSupplier,
+  loadRemoteState,
+  rememberOperator,
+  replaceMaterialOffers,
+  updateCategory,
+  updateMaterial,
+  updateSupplier,
+} from "@/lib/inventory/remote";
+import { supabase } from "@/lib/supabase/client";
+import type {
+  Category,
+  CategoryDraft,
+  CategoryErrors,
+  InventoryState,
+  Material,
+  MaterialDraft,
+  MaterialErrors,
+  Movement,
+  MovementDraft,
+  MovementErrors,
+  Supplier,
+  SupplierDraft,
+  SupplierErrors,
+  SupplierOfferInput,
+  SupplierProduct,
+} from "@/lib/inventory/types";
 
 export interface InventoryContextValue {
-  /** localStorage 已读完。 */
   ready: boolean;
-  /** 每次「重置示例数据」加 1，用来让表单重新挂载。 */
-  epoch: number;
+  loadError: string | null;
   state: InventoryState;
-  source: StateSource;
   persistError: string | null;
-  postMovement: (draft: MovementDraft) => { ok: true; movement: Movement } | { ok: false; errors: MovementErrors };
+  reload: () => void;
+  postMovement: (draft: MovementDraft) => Promise<{ ok: true; movement: Movement } | { ok: false; errors: MovementErrors }>;
   saveMaterial: (
     draft: MaterialDraft,
+    offers: SupplierOfferInput[],
     id?: string,
-  ) => { ok: true; material: Material } | { ok: false; errors: MaterialErrors };
-  removeMaterial: (id: string) => { ok: true } | { ok: false; error: string };
-  resetDemo: () => void;
+  ) => Promise<{ ok: true; material: Material } | { ok: false; errors: MaterialErrors; materialId?: string }>;
+  removeMaterial: (id: string) => Promise<{ ok: true } | { ok: false; error: string }>;
+  saveCategory: (
+    draft: CategoryDraft,
+    id?: string,
+  ) => Promise<{ ok: true; category: Category } | { ok: false; errors: CategoryErrors }>;
+  removeCategory: (id: string) => Promise<{ ok: true } | { ok: false; error: string }>;
+  saveSupplier: (
+    draft: SupplierDraft,
+    id?: string,
+  ) => Promise<{ ok: true; supplier: Supplier } | { ok: false; errors: SupplierErrors }>;
+  removeSupplier: (id: string) => Promise<{ ok: true } | { ok: false; error: string }>;
 }
 
 const InventoryContext = createContext<InventoryContextValue | null>(null);
 
+const REALTIME_TABLES = ["categories", "materials", "suppliers", "supplier_products", "stock_movements", "app_settings"] as const;
+
 export function InventoryProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
-  const [epoch, setEpoch] = useState(0);
-  const [state, setState] = useState<InventoryState>(() => createSampleState());
-  const [source, setSource] = useState<StateSource>("empty");
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [persistError, setPersistError] = useState<string | null>(null);
+  const [state, setState] = useState<InventoryState>(() => createEmptyState());
   const stateRef = useRef(state);
+  const revision = useRef(0);
+  const hasLoaded = useRef(false);
+  const timer = useRef<number | undefined>(undefined);
   stateRef.current = state;
 
-  useEffect(() => {
-    const loaded = loadState();
-    stateRef.current = loaded.state;
-    setState(loaded.state);
-    setSource(loaded.source);
-    if (loaded.error) {
-      setPersistError(loaded.error);
-    } else if (loaded.source === "empty") {
-      const saved = saveState(loaded.state);
-      setPersistError(saved.ok ? null : saved.error);
-      if (saved.ok) setSource("saved");
+  const refresh = useCallback(async () => {
+    const token = ++revision.current;
+    let result: Awaited<ReturnType<typeof loadRemoteState>>;
+    try {
+      result = await loadRemoteState();
+    } catch (error) {
+      result = { ok: false, error: error instanceof Error ? error.message : "没能读取共享库存。" };
     }
+    if (token !== revision.current) return;
+    if (!result.ok) {
+      if (hasLoaded.current) setPersistError(`暂时没能刷新共享库存，页面上仍是上次读到的内容。${result.error}`);
+      else setLoadError(result.error);
+      setReady(true);
+      return;
+    }
+    hasLoaded.current = true;
+    stateRef.current = result.state;
+    setState(result.state);
+    setLoadError(null);
+    setPersistError(null);
     setReady(true);
   }, []);
 
-  const value = useMemo<InventoryContextValue>(() => {
-    const commit = (next: InventoryState) => {
+  const commit = useCallback(
+    (next: InventoryState) => {
       stateRef.current = next;
       setState(next);
-      const saved = saveState(next);
-      setPersistError(saved.ok ? null : saved.error);
-      if (saved.ok) setSource("saved");
+      setPersistError(null);
+      void refresh();
+    },
+    [refresh],
+  );
+
+  useEffect(() => {
+    void refresh();
+    const schedule = () => {
+      window.clearTimeout(timer.current);
+      timer.current = window.setTimeout(() => {
+        void refresh();
+      }, 200);
     };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") schedule();
+    };
+    window.addEventListener("focus", schedule);
+    document.addEventListener("visibilitychange", onVisible);
+    const channel = supabase.channel("coolzone-inventory");
+    for (const table of REALTIME_TABLES) {
+      channel.on("postgres_changes", { event: "*", schema: "public", table }, schedule);
+    }
+    channel.subscribe();
+    return () => {
+      window.removeEventListener("focus", schedule);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.clearTimeout(timer.current);
+      void supabase.removeChannel(channel);
+    };
+  }, [refresh]);
+
+  const value = useMemo<InventoryContextValue>(() => {
     return {
       ready,
-      epoch,
+      loadError,
       state,
-      source,
       persistError,
-      postMovement: (draft) => {
-        const result = postMovement(stateRef.current, draft, {
-          id: createId("mv"),
-          at: new Date().toISOString(),
-          sample: false,
-        });
+      reload: () => {
+        void refresh();
+      },
+      postMovement: async (draft) => {
+        const result = postMovement(stateRef.current, draft, { id: createId(), at: new Date().toISOString() });
         if (!result.ok) return result;
+        const saved = await insertMovement(result.movement);
+        if (!saved.ok) {
+          setPersistError(saved.error);
+          return { ok: false, errors: { form: saved.error } };
+        }
+        const remembered = await rememberOperator(result.state.lastOperator);
+        if (!remembered.ok) setPersistError(`流水已记下，但没能记住操作人。${remembered.error}`);
         commit(result.state);
         return { ok: true, movement: result.movement };
       },
-      saveMaterial: (draft, id) => {
-        const materialId = id ?? createId("mat");
+      saveMaterial: async (draft, offers, id) => {
+        const materialId = id ?? createId();
         const result = saveMaterial(stateRef.current, draft, { id: materialId, now: new Date().toISOString() });
         if (!result.ok) return result;
-        commit(result.state);
-        return { ok: true, material: result.material };
+        const existed = stateRef.current.materials.some((material) => material.id === materialId);
+        const saved = existed ? await updateMaterial(result.material) : await insertMaterial(result.material);
+        if (!saved.ok) {
+          if (saved.error === "SKU 已存在。") return { ok: false, errors: { sku: saved.error } };
+          return { ok: false, errors: { form: saved.error } };
+        }
+        const previous = stateRef.current.supplierProducts.filter((offer) => offer.materialId === saved.material.id);
+        const now = new Date().toISOString();
+        const nextOffers: SupplierProduct[] = offers.map((offer) => ({
+          id: offer.id ?? createId(),
+          materialId: saved.material.id,
+          supplierId: offer.supplierId,
+          supplierCode: offer.supplierCode,
+          supplierProductName: offer.supplierProductName,
+          priceExGst: offer.priceExGst,
+          currency: "AUD",
+          notes: offer.notes,
+          updatedAt: now,
+        }));
+        const offersSaved = await replaceMaterialOffers(saved.material.id, nextOffers, previous);
+        const materials = existed
+          ? stateRef.current.materials.map((material) => (material.id === saved.material.id ? saved.material : material))
+          : [...stateRef.current.materials, saved.material];
+        const supplierProducts = [
+          ...stateRef.current.supplierProducts.filter((offer) => offer.materialId !== saved.material.id),
+          ...(offersSaved.ok ? nextOffers : previous),
+        ];
+        commit({ ...stateRef.current, materials, supplierProducts });
+        if (!offersSaved.ok) {
+          return { ok: false, errors: { offers: `物料已保存，但报价没写完。${offersSaved.error}` }, materialId: saved.material.id };
+        }
+        return { ok: true, material: saved.material };
       },
-      removeMaterial: (id) => {
+      removeMaterial: async (id) => {
         const result = removeMaterial(stateRef.current, id);
         if (!result.ok) return result;
-        commit(result.state);
+        const offers = stateRef.current.supplierProducts.filter((offer) => offer.materialId === id);
+        if (offers.length > 0) {
+          const cleared = await replaceMaterialOffers(id, [], offers);
+          if (!cleared.ok) return { ok: false, error: cleared.error };
+        }
+        const saved = await deleteMaterial(id);
+        if (!saved.ok) return { ok: false, error: saved.error };
+        commit({
+          ...result.state,
+          supplierProducts: stateRef.current.supplierProducts.filter((offer) => offer.materialId !== id),
+        });
         return { ok: true };
       },
-      resetDemo: () => {
-        commit(createSampleState());
-        setEpoch((n) => n + 1);
+      saveCategory: async (draft, id) => {
+        const categoryId = id ?? createId();
+        const result = validateCategory(stateRef.current.categories, draft, id);
+        if (!result.ok) return result;
+        const existing = stateRef.current.categories.find((category) => category.id === categoryId);
+        const category: Category = {
+          id: categoryId,
+          nameZh: result.value.nameZh,
+          nameEn: result.value.nameEn,
+          parentId: result.value.parentId,
+          sortOrder: result.value.sortOrder,
+          createdAt: existing?.createdAt ?? new Date().toISOString(),
+        };
+        const saved = existing ? await updateCategory(category) : await insertCategory(category);
+        if (!saved.ok) return { ok: false, errors: { form: saved.error } };
+        const categories = existing
+          ? stateRef.current.categories.map((item) => (item.id === saved.category.id ? saved.category : item))
+          : [...stateRef.current.categories, saved.category];
+        commit({ ...stateRef.current, categories });
+        return { ok: true, category: saved.category };
+      },
+      removeCategory: async (id) => {
+        const error = categoryDeleteError(stateRef.current.categories, stateRef.current.materials, id);
+        if (error) return { ok: false, error };
+        const saved = await deleteCategory(id);
+        if (!saved.ok) return saved;
+        commit({ ...stateRef.current, categories: stateRef.current.categories.filter((category) => category.id !== id) });
+        return { ok: true };
+      },
+      saveSupplier: async (draft, id) => {
+        const supplierId = id ?? createId();
+        const result = validateSupplier(stateRef.current.suppliers, draft, id);
+        if (!result.ok) return result;
+        const existing = stateRef.current.suppliers.find((supplier) => supplier.id === supplierId);
+        const supplier: Supplier = {
+          id: supplierId,
+          ...result.value,
+          updatedAt: new Date().toISOString(),
+        };
+        const saved = existing ? await updateSupplier(supplier) : await insertSupplier(supplier);
+        if (!saved.ok) return { ok: false, errors: { form: saved.error } };
+        const suppliers = existing
+          ? stateRef.current.suppliers.map((item) => (item.id === saved.supplier.id ? saved.supplier : item))
+          : [...stateRef.current.suppliers, saved.supplier];
+        commit({ ...stateRef.current, suppliers });
+        return { ok: true, supplier: saved.supplier };
+      },
+      removeSupplier: async (id) => {
+        const error = supplierDeleteError(
+          stateRef.current.suppliers,
+          stateRef.current.supplierProducts,
+          stateRef.current.movements,
+          id,
+        );
+        if (error) return { ok: false, error };
+        const saved = await deleteSupplier(id);
+        if (!saved.ok) return saved;
+        commit({ ...stateRef.current, suppliers: stateRef.current.suppliers.filter((supplier) => supplier.id !== id) });
+        return { ok: true };
       },
     };
-  }, [epoch, persistError, ready, source, state]);
+  }, [commit, loadError, persistError, ready, refresh, state]);
 
   return <InventoryContext.Provider value={value}>{children}</InventoryContext.Provider>;
 }

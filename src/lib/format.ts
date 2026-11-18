@@ -15,6 +15,21 @@ export function formatMelbourneTime(iso: string): string {
   }).format(date);
 }
 
+/** 中英都有时显示「中文 English」，只有一边时显示那一边。 */
+export function bilingualLabel(nameZh: string, nameEn: string): string {
+  const zh = nameZh.trim();
+  const en = nameEn.trim();
+  if (zh && en) return `${zh} ${en}`;
+  return zh || en;
+}
+
+/** 未含 GST 的澳元价格，例如 A$12.50。 */
+export function formatAud(value: number): string {
+  if (!Number.isFinite(value)) return "—";
+  const sign = value < 0 ? "-" : "";
+  return `${sign}A$${Math.abs(value).toFixed(2)}`;
+}
+
 export function movementTypeLabel(type: MovementType): string {
   switch (type) {
     case "receipt":
@@ -26,6 +41,3 @@ export function movementTypeLabel(type: MovementType): string {
   }
 }
 
-export function originLabel(sample: boolean): string {
-  return sample ? "示例数据" : "本机新增";
-}

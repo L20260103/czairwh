@@ -27,22 +27,7 @@ export function getUnit(code: string): Unit {
   return unit;
 }
 
-/** 类别建议（下拉提示）。 */
-export const CATEGORY_SUGGESTIONS = [
-  "铜管 Copper",
-  "保温 Insulation",
-  "制冷剂 Refrigerant",
-  "风口 Grille",
-  "过滤 Filter",
-  "电气 Electrical",
-  "配件 Fittings",
-  "控制器 Controls",
-  "排水 Drainage",
-  "辅材 Consumable",
-  "气体 Gas",
-];
-
-/** 库位建议（下拉提示）。 */
+/** 库位建议（下拉提示）。类别不写死在代码里，从数据库的类别表读取。 */
 export const LOCATION_SUGGESTIONS = [
   "A-01 铜管架",
   "A-02 保温架",

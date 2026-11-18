@@ -22,8 +22,8 @@ export const DUPLICATE_WINDOW_MS = 30_000;
 /** 各文本字段的最大字数。 */
 export const MAX_LENGTH = {
   sku: 32,
-  name: 80,
-  category: 40,
+  nameZh: 80,
+  nameEn: 120,
   location: 40,
   operator: 40,
   job: 40,
@@ -33,7 +33,14 @@ export const MAX_LENGTH = {
 };
 
 export function createEmptyState(): InventoryState {
-  return { version: 1, materials: [], movements: [], lastOperator: "" };
+  return {
+    categories: [],
+    materials: [],
+    suppliers: [],
+    supplierProducts: [],
+    movements: [],
+    lastOperator: "",
+  };
 }
 
 /** 数量 → 百分位整数。 */
@@ -204,6 +211,7 @@ interface NormalizedMovement {
   operator: string;
   jobNumber: string;
   recipient: string;
+  supplierId: string;
   reference: string;
   notes: string;
 }
@@ -217,6 +225,7 @@ function movementFingerprint(m: NormalizedMovement): string {
     m.operator.toLowerCase(),
     normalizeKey(m.jobNumber),
     m.recipient.toLowerCase(),
+    m.supplierId,
     m.reference.toLowerCase(),
     m.notes.toLowerCase(),
   ].join("|");
@@ -252,8 +261,13 @@ export function validateMovement(
   const operator = normalizeText(draft.operator);
   const jobNumber = type === "receipt" ? "" : normalizeText(draft.jobNumber);
   const recipient = type === "receipt" ? "" : normalizeText(draft.recipient);
+  const supplierId = type === "receipt" ? draft.supplierId.trim() : "";
   const reference = normalizeText(draft.reference);
   const notes = normalizeText(draft.notes);
+
+  if (supplierId && !state.suppliers.some((supplier) => supplier.id === supplierId)) {
+    errors.supplierId = "请选择有效的供应商。";
+  }
 
   if (!operator) errors.operator = "请填写操作人。";
   const operatorTooLong = tooLong(operator, MAX_LENGTH.operator, "操作人");
@@ -301,6 +315,7 @@ export function validateMovement(
     operator,
     jobNumber,
     recipient,
+    supplierId,
     reference,
     notes,
   };
@@ -332,7 +347,7 @@ export type PostMovementResult =
 export function postMovement(
   state: InventoryState,
   draft: MovementDraft,
-  meta: { id: string; at: string; sample: boolean },
+  meta: { id: string; at: string },
 ): PostMovementResult {
   const result = validateMovement(state, draft, meta.at);
   if (!result.ok) return result;
@@ -348,9 +363,9 @@ export function postMovement(
     operator: v.operator,
     jobNumber: v.jobNumber,
     recipient: v.recipient,
+    supplierId: v.supplierId,
     reference: v.reference,
     notes: v.notes,
-    sample: meta.sample,
   };
   return {
     ok: true,
@@ -363,7 +378,7 @@ function normalizeSku(value: string): string {
   return normalizeText(value).toUpperCase();
 }
 
-type MaterialFields = Omit<Material, "id" | "sample" | "createdAt">;
+type MaterialFields = Omit<Material, "id" | "createdAt">;
 
 type ValidateMaterialResult = { ok: true; value: MaterialFields } | { ok: false; errors: MaterialErrors };
 
@@ -384,18 +399,20 @@ export function validateMaterial(
     errors.sku = "SKU 已存在。";
   }
 
-  const name = normalizeText(draft.name);
-  const category = normalizeText(draft.category);
+  const nameZh = normalizeText(draft.nameZh);
+  const nameEn = normalizeText(draft.nameEn);
   const location = normalizeText(draft.location);
   const note = normalizeText(draft.note);
+  const categoryId = draft.categoryId.trim();
 
-  if (!name) errors.name = "请填写名称。";
-  const nameTooLong = tooLong(name, MAX_LENGTH.name, "名称");
-  if (nameTooLong) errors.name = nameTooLong;
+  if (!nameZh && !nameEn) errors.nameZh = "中文名和英文名至少填一个。";
+  const nameZhTooLong = tooLong(nameZh, MAX_LENGTH.nameZh, "中文名");
+  if (nameZhTooLong) errors.nameZh = nameZhTooLong;
+  const nameEnTooLong = tooLong(nameEn, MAX_LENGTH.nameEn, "英文名");
+  if (nameEnTooLong) errors.nameEn = nameEnTooLong;
 
-  if (!category) errors.category = "请填写类别。";
-  const categoryTooLong = tooLong(category, MAX_LENGTH.category, "类别");
-  if (categoryTooLong) errors.category = categoryTooLong;
+  if (!categoryId || categoryId === "none") errors.categoryId = "请选择类别。";
+  else if (!state.categories.some((category) => category.id === categoryId)) errors.categoryId = "请选择有效的类别。";
 
   if (!location) errors.location = "请填写库位。";
   const locationTooLong = tooLong(location, MAX_LENGTH.location, "库位");
@@ -432,8 +449,9 @@ export function validateMaterial(
     ok: true,
     value: {
       sku,
-      name,
-      category,
+      nameZh,
+      nameEn,
+      categoryId,
       unit: draft.unit as UnitCode,
       location,
       minStock,
@@ -457,7 +475,7 @@ export function saveMaterial(
   if (!result.ok) return result;
   const material: Material = existing
     ? { ...existing, ...result.value }
-    : { id: meta.id, ...result.value, sample: false, createdAt: meta.now };
+    : { id: meta.id, ...result.value, createdAt: meta.now };
   const materials = existing
     ? state.materials.map((m) => (m.id === material.id ? material : m))
     : [...state.materials, material];
@@ -473,8 +491,14 @@ export function removeMaterial(state: InventoryState, materialId: string): Remov
   return { ok: true, state: { ...state, materials: state.materials.filter((m) => m.id !== materialId) } };
 }
 
-export function createId(prefix: string): string {
-  const random =
-    globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(16).slice(2)}`;
-  return `${prefix}-${random}`;
+/** 数据库主键用的 UUID。file:// 下没有 randomUUID 时退回 getRandomValues。 */
+export function createId(): string {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  const bytes = new Uint8Array(16);
+  if (globalThis.crypto?.getRandomValues) globalThis.crypto.getRandomValues(bytes);
+  else for (let index = 0; index < bytes.length; index += 1) bytes[index] = Math.floor(Math.random() * 256);
+  bytes[6] = (bytes[6]! & 0x0f) | 0x40;
+  bytes[8] = (bytes[8]! & 0x3f) | 0x80;
+  const hex = [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }

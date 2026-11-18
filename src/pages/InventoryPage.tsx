@@ -1,10 +1,12 @@
 import { useMemo, useState } from "react";
 
-import { EmptyState, OriginBadge, PageHeader, StockStatusBadges } from "@/components/common";
+import { EmptyState, PageHeader, StockStatusBadges } from "@/components/common";
 import { OptionSelect } from "@/components/OptionSelect";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { bilingualLabel } from "@/lib/format";
+import { categoryPath, categorySelectOptions, descendantIds } from "@/lib/inventory/catalog";
 import { formatQty, getOnHand, getStockStatus } from "@/lib/inventory/inventory";
 import type { MovementType } from "@/lib/inventory/types";
 import { getUnit } from "@/lib/inventory/units";
@@ -21,21 +23,21 @@ export function InventoryPage() {
   const [location, setLocation] = useState("all");
   const [lowOnly, setLowOnly] = useState(params.get("low") === "1");
 
-  const categories = useMemo(() => ["all", ...new Set(state.materials.map((m) => m.category))], [state.materials]);
+  const categories = useMemo(() => categorySelectOptions(state.categories), [state.categories]);
   const locations = useMemo(() => ["all", ...new Set(state.materials.map((m) => m.location))], [state.materials]);
 
   const rows = state.materials
     .map((material) => ({ material, qty: getOnHand(state, material.id) }))
     .filter(({ material, qty }) => {
       if (
-        (category !== "all" && material.category !== category) ||
+        (category !== "all" && !descendantIds(state.categories, category).has(material.categoryId)) ||
         (location !== "all" && material.location !== location) ||
         (lowOnly && getStockStatus(material.minStock, qty) !== "low")
       )
         return false;
       const q = query.trim().toLowerCase();
       if (q) {
-        return `${material.sku} ${material.name} ${material.category} ${material.location} ${material.note}`
+        return `${material.sku} ${material.nameZh} ${material.nameEn} ${categoryPath(state.categories, material.categoryId)} ${material.location} ${material.note}`
           .toLowerCase()
           .includes(q);
       }
@@ -52,7 +54,7 @@ export function InventoryPage() {
   return (
     <div>
       <PageHeader title="库存">
-        数量来自流水，不在这里直接改。低于最低库存的物料排在前面。示例数量旁边标着「示例数据」。
+        数量来自流水，不在这里直接改。低于最低库存的物料排在前面。名称显示为「中文 English」。
       </PageHeader>
       <div className="mb-4 grid gap-2 md:grid-cols-[minmax(0,1fr)_12rem_12rem_auto]">
         <Input
@@ -66,7 +68,7 @@ export function InventoryPage() {
           label="类别"
           value={category}
           onChange={setCategory}
-          options={categories.map((c) => ({ value: c, label: c === "all" ? "全部类别" : c }))}
+          options={[{ value: "all", label: "全部类别" }, ...categories]}
         />
         <OptionSelect
           label="库位"
@@ -87,7 +89,13 @@ export function InventoryPage() {
       <p className="mb-3 text-xs text-muted-foreground">
         显示 {rows.length} / {state.materials.length}
       </p>
-      {rows.length === 0 ? (
+      {state.materials.length === 0 ? (
+        <EmptyState title="还没有物料">
+          <Link href="/materials" className="text-[#1f5f78]">
+            到物料目录新增第一条
+          </Link>
+        </EmptyState>
+      ) : rows.length === 0 ? (
         <EmptyState title="没有符合筛选的物料">
           <button
             type="button"
@@ -121,13 +129,10 @@ export function InventoryPage() {
                 {rows.map(({ material, qty }) => (
                   <TableRow key={material.id}>
                     <TableCell>
-                      <div className="font-medium">{material.name}</div>
-                      <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                        <span>{material.sku}</span>
-                        <OriginBadge sample={material.sample} />
-                      </div>
+                      <div className="font-medium">{bilingualLabel(material.nameZh, material.nameEn)}</div>
+                      <div className="mt-1 text-xs text-muted-foreground">{material.sku}</div>
                     </TableCell>
-                    <TableCell>{material.category}</TableCell>
+                    <TableCell>{categoryPath(state.categories, material.categoryId)}</TableCell>
                     <TableCell>{material.location}</TableCell>
                     <TableCell className="text-base font-semibold tabular-nums">
                       {formatQty(qty)}{" "}
@@ -155,12 +160,11 @@ export function InventoryPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-xs text-muted-foreground">{material.sku}</p>
-                    <h2 className="font-semibold">{material.name}</h2>
+                    <h2 className="font-semibold">{bilingualLabel(material.nameZh, material.nameEn)}</h2>
                     <p className="text-xs text-muted-foreground">
-                      {material.category} · {material.location}
+                      {categoryPath(state.categories, material.categoryId)} · {material.location}
                     </p>
                   </div>
-                  <OriginBadge sample={material.sample} />
                 </div>
                 <div className="mt-3 flex items-end justify-between gap-3">
                   <p className="text-3xl font-semibold tabular-nums">
