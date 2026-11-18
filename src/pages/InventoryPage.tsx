@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { bilingualLabel, displayLocation, joinMeta, locationText } from "@/lib/format";
 import { categoryPath, categorySelectOptions, descendantIds } from "@/lib/inventory/catalog";
+import { specSearchText, specSummary } from "@/lib/inventory/specs";
 import { formatQty, fromCents, getStockStatus, onHandCentsByMaterial } from "@/lib/inventory/inventory";
 import type { MovementType } from "@/lib/inventory/types";
 import { getUnit } from "@/lib/inventory/units";
@@ -39,7 +40,7 @@ export function InventoryPage() {
         material,
         qty: fromCents(onHand.get(material.id) ?? 0),
         haystack:
-          `${material.sku} ${material.nameZh} ${material.nameEn} ${categoryPath(state.categories, material.categoryId)} ${locationText(material.location)} ${material.note}`.toLowerCase(),
+          `${material.sku} ${material.nameZh} ${material.nameEn} ${categoryPath(state.categories, material.categoryId)} ${locationText(material.location)} ${material.note} ${specSearchText(material.specs)}`.toLowerCase(),
       })),
     [onHand, state.categories, state.materials],
   );
@@ -148,6 +149,7 @@ export function InventoryPage() {
                   <TableRow key={material.id}>
                     <TableCell>
                       <div className="font-medium">{bilingualLabel(material.nameZh, material.nameEn)}</div>
+                      <SpecSummary specs={material.specs} />
                       <div className="mt-1 text-xs text-muted-foreground">{material.sku}</div>
                     </TableCell>
                     <TableCell>{categoryPath(state.categories, material.categoryId)}</TableCell>
@@ -179,6 +181,7 @@ export function InventoryPage() {
                   <div>
                     <p className="text-xs text-muted-foreground">{material.sku}</p>
                     <h2 className="font-semibold">{bilingualLabel(material.nameZh, material.nameEn)}</h2>
+                    <SpecSummary specs={material.specs} />
                     <p className="text-xs text-muted-foreground">
                       {joinMeta([categoryPath(state.categories, material.categoryId), locationText(material.location)])}
                     </p>
@@ -205,6 +208,12 @@ export function InventoryPage() {
       )}
     </div>
   );
+}
+
+function SpecSummary({ specs }: { specs: Record<string, unknown> }) {
+  const summary = specSummary(specs);
+  if (!summary) return null;
+  return <p className="mt-0.5 text-xs leading-5 text-[#1f5f78]">{summary}</p>;
 }
 
 /** 跳到出入库页并预选物料和类型。 */

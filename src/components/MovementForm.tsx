@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { bilingualLabel, formatAud, joinMeta, locationText, movementTypeLabel } from "@/lib/format";
 import { formatQty, getJobBalance, getOnHand, validateMovement } from "@/lib/inventory/inventory";
+import { specSearchText } from "@/lib/inventory/specs";
 import type { MovementDraft, MovementErrors, MovementType } from "@/lib/inventory/types";
 import { getUnit } from "@/lib/inventory/units";
 import { cn } from "@/lib/utils";
@@ -82,7 +83,9 @@ export function MovementForm({
     const q = materialQuery.trim().toLowerCase();
     return state.materials
       .filter((m) => m.active || m.id === materialId)
-      .filter((m) => (q ? `${m.sku} ${m.nameZh} ${m.nameEn} ${locationText(m.location)}`.toLowerCase().includes(q) : true))
+      .filter((m) =>
+        q ? `${m.sku} ${m.nameZh} ${m.nameEn} ${locationText(m.location)} ${specSearchText(m.specs)}`.toLowerCase().includes(q) : true,
+      )
       .slice(0, 12);
   }, [materialId, materialQuery, state.materials]);
 
@@ -155,7 +158,7 @@ export function MovementForm({
             label="物料"
             htmlFor="material-search"
             error={fieldError("materialId")}
-            hint="可搜 SKU、名称或库位。停用物料不会出现在这里。"
+            hint="可搜 SKU、名称、库位或型号。停用物料不会出现在这里。"
           >
             <Input
               id="material-search"

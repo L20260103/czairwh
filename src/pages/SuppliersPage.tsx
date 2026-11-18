@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { bilingualLabel, formatAud, joinMeta } from "@/lib/format";
 import { categoryPath, categorySelectOptions, descendantIds } from "@/lib/inventory/catalog";
+import { specSearchText } from "@/lib/inventory/specs";
 import type { Category, Material, Supplier, SupplierProduct } from "@/lib/inventory/types";
 import { Link, usePathname } from "@/lib/router";
 import { cn } from "@/lib/utils";
@@ -184,7 +185,7 @@ function SupplierProductsPage({ supplierId }: { supplierId: string }) {
         <Input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="搜索货号、品名、SKU、中文名、英文名"
+          placeholder="搜索货号、品名、SKU、名称或型号"
           className="h-11 bg-white"
           aria-label="搜索供应商产品"
         />
@@ -333,7 +334,14 @@ function buildProductRows(
       material,
       category: material ? paths.get(material.categoryId) ?? "" : "",
       productName,
-      haystack: [offer.supplierCode, offer.supplierProductName, material?.sku ?? "", material?.nameZh ?? "", material?.nameEn ?? ""]
+      haystack: [
+        offer.supplierCode,
+        offer.supplierProductName,
+        material?.sku ?? "",
+        material?.nameZh ?? "",
+        material?.nameEn ?? "",
+        material ? specSearchText(material.specs) : "",
+      ]
         .join(" ")
         .toLowerCase(),
     });
