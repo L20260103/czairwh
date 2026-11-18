@@ -31,7 +31,7 @@ export function DashboardPage() {
   const stats = [
     { href: "/inventory", label: "在库物料", value: String(stockedCount), note: "有过出入库，数量为 0 仍算" },
     { href: "/reorder", label: "低于最低库存", value: String(reorder.length), note: "只算在库的安装耗材，不会下单" },
-    { href: "/history", label: "流水笔数", value: String(state.movements.length), note: "只追加，不能改旧账" },
+    { href: "/history", label: "流水笔数", value: String(state.movements.length), note: "数量不能改，文字可在流水里改" },
     { href: "/move", label: "记住的操作人", value: state.lastOperator || "未填写", note: "不是登录账号" },
   ];
 

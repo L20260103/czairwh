@@ -145,7 +145,17 @@ export interface SupplierOfferInput {
   notes: string;
 }
 
+/** 流水里允许事后修改的文字。数量、物料、类型和时间不在这里。 */
+export interface MovementTextDraft {
+  operator: string;
+  jobNumber: string;
+  recipient: string;
+  reference: string;
+  notes: string;
+}
+
 export type MovementErrors = Partial<Record<keyof MovementDraft | "form", string>>;
+export type MovementTextErrors = Partial<Record<keyof MovementTextDraft | "form", string>>;
 export type MaterialErrors = Partial<Record<keyof MaterialDraft | "form" | "offers", string>>;
 export type CategoryErrors = Partial<Record<keyof CategoryDraft | "form", string>>;
 export type SupplierErrors = Partial<Record<keyof SupplierDraft | "form", string>>;

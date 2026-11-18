@@ -39,7 +39,7 @@ function MovePageContent({ initialType, initialMaterialId }: { initialType: Move
   return (
     <div>
       <PageHeader title="出入库">
-        库存只随流水变化。记错了不能改掉原记录，请再记一笔入库、出库或退库。{DUPLICATE_WINDOW_MS / 1000} 秒内完全相同的一笔会被拦住，避免连点记重。
+        库存只随流水变化。数量、物料和类型记错了不能改原记录，请再记一笔。操作人、工单、领用、参考和备注可以到流水页修改。{DUPLICATE_WINDOW_MS / 1000} 秒内完全相同的一笔会被拦住，避免连点记重。
       </PageHeader>
       <MovementForm
         initialType={initialType}

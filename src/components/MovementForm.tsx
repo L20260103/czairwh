@@ -365,7 +365,7 @@ export function MovementForm({
             {submitting ? "正在记账…" : submitLabel}
           </Button>
           <p className="text-xs leading-5 text-muted-foreground">
-            记账后不能改原记录。数量为 0、负数、超过库存，或退库超过该工单领用时，不会写入流水。
+            数量、物料和类型记账后不能改。操作人、工单、领用、参考和备注可以在流水里改。数量为 0、负数、超过库存，或退库超过该工单领用时，不会写入流水。
           </p>
         </div>
       </div>
