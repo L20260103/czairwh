@@ -1,12 +1,26 @@
 import { toast } from "sonner";
 
-import { OriginBadge, PageHeader } from "@/components/common";
+import { PageHeader } from "@/components/common";
 import { Button } from "@/components/ui/button";
 import { downloadFile, reorderCsv } from "@/lib/csv";
+import { bilingualLabel, formatAud } from "@/lib/format";
+import { categoryPath, cheapestOffers, supplierName } from "@/lib/inventory/catalog";
 import { formatQty, getReorderSuggestions } from "@/lib/inventory/inventory";
 import { getUnit } from "@/lib/inventory/units";
 import { Link } from "@/lib/router";
+import type { InventoryState } from "@/lib/inventory/types";
 import { useInventory } from "@/store/InventoryProvider";
+
+function ReorderPrice({ state, materialId }: { state: InventoryState; materialId: string }) {
+  const best = cheapestOffers(state.supplierProducts, materialId)[0];
+  if (!best) return <p className="mt-1 text-sm text-[#8a4b16]">还没有供应商报价。</p>;
+  return (
+    <p className="mt-1 text-sm">
+      最低 {supplierName(state.suppliers, best.supplierId)}
+      {best.supplierCode ? ` · ${best.supplierCode}` : ""} · {best.supplierProductName} · {formatAud(best.priceExGst)} 未含 GST
+    </p>
+  );
+}
 
 /** 待补货（#/reorder）。 */
 export function ReorderPage() {
@@ -41,12 +55,12 @@ export function ReorderPage() {
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="font-semibold">{item.material.name}</h2>
-                    <OriginBadge sample={item.material.sample} />
+                    <h2 className="font-semibold">{bilingualLabel(item.material.nameZh, item.material.nameEn)}</h2>
                   </div>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    {item.material.sku} · {item.material.category} · {item.material.location}
+                    {item.material.sku} · {categoryPath(state.categories, item.material.categoryId)} · {item.material.location}
                   </p>
+                  <ReorderPrice state={state} materialId={item.material.id} />
                 </div>
                 <p className="text-right">
                   <span className="block text-xs text-muted-foreground">建议补货</span>

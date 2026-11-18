@@ -14,18 +14,6 @@ export function PageHeader({ title, children }: { title: string; children?: Reac
   );
 }
 
-/** 「示例数据」/「本机新增」标记。 */
-export function OriginBadge({ sample }: { sample: boolean }) {
-  if (sample) {
-    return (
-      <Badge variant="outline" className="border-[#e4c7a4] bg-[#fbf6ee] text-[#8a4b16]">
-        示例数据
-      </Badge>
-    );
-  }
-  return <Badge variant="secondary">本机新增</Badge>;
-}
-
 /** 库存状态标记。 */
 export function StockStatusBadges({ minStock, qty, active }: { minStock: number; qty: number; active: boolean }) {
   const status = getStockStatus(minStock, qty);

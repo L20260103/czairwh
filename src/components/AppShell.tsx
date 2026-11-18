@@ -7,19 +7,13 @@ import {
   LayoutDashboard,
   Menu,
   ScrollText,
+  Store,
+  Tags,
   Warehouse,
   type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -43,6 +37,8 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/history", label: "流水", icon: ScrollText },
   { href: "/reorder", label: "待补货", icon: ClipboardList },
   { href: "/materials", label: "物料目录", icon: Boxes },
+  { href: "/suppliers", label: "供应商", icon: Store },
+  { href: "/categories", label: "类别", icon: Tags },
   { href: "/guide", label: "假设与范围", icon: BookOpen },
 ];
 
@@ -113,9 +109,8 @@ type ExportKind = "inventory" | "movements" | "reorder";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { ready, epoch, state, source, persistError, resetDemo } = useInventory();
+  const { ready, loadError, state, persistError, reload } = useInventory();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [confirmResetOpen, setConfirmResetOpen] = useState(false);
   const lowCount = getReorderSuggestions(state).length;
   const mismatchCount = ready ? countBalanceMismatches(state) : 0;
 
@@ -138,8 +133,26 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="mx-auto w-fit">
             <Logo />
           </div>
-          <p className="mt-4 text-sm font-medium text-[#1c3144]">正在读取本机试用数据…</p>
-          <p className="mt-2 text-xs leading-5 text-[#6b4423]">试用原型 · 示例数据 · 未连接 Tradify/monday</p>
+          <p className="mt-4 text-sm font-medium text-[#1c3144]">正在读取共享库存…</p>
+          <p className="mt-2 text-xs leading-5 text-[#6b4423]">所有设备看同一份数据 · 未连接 Tradify/monday</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="grid min-h-dvh place-items-center bg-[#e8eef2] px-6">
+        <div className="max-w-md text-center">
+          <div className="mx-auto w-fit">
+            <Logo />
+          </div>
+          <p className="mt-4 text-sm font-medium text-[#1c3144]" role="alert">
+            {loadError}
+          </p>
+          <Button className="mt-4" onClick={() => reload()}>
+            重试
+          </Button>
         </div>
       </div>
     );
@@ -160,8 +173,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             <SideNav pathname={pathname} lowCount={lowCount} />
           </div>
           <div className="shrink-0 border-t border-[#2d465c] px-4 py-4 text-xs leading-5 text-[#d5e2ec]">
-            <p>本机浏览器保存。</p>
-            <p>不是多人共享，也没有生产备份。</p>
+            <p>全员共用一份 Supabase 数据。</p>
+            <p>知道网址的人都能改。没有登录。</p>
           </div>
         </aside>
 
@@ -201,23 +214,15 @@ export function AppShell({ children }: { children: ReactNode }) {
                     <DropdownMenuItem onClick={() => exportCsv("reorder")}>待补货建议</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <Button variant="outline" className="h-10 bg-white px-3" onClick={() => setConfirmResetOpen(true)}>
-                  恢复示例
-                </Button>
               </div>
             </div>
             <div
               data-testid="prototype-banner"
               className="border-t border-[#ead9c4] bg-[#fbf6ee] px-3 py-2 text-xs leading-5 text-[#6b4423] lg:px-8"
             >
-              <span className="font-semibold">试用原型 · 示例数据 · 未连接 Tradify/monday</span>
-              <span className="ml-2 text-[#8a6240]">供负责人审阅和改规则。不会下单，也不会写入外部系统。</span>
+              <span className="font-semibold">试用原型 · 未连接 Tradify/monday</span>
+              <span className="ml-2 text-[#8a6240]">知道网址即可查看和修改。不会下单，也不会写入外部系统。</span>
             </div>
-            {source === "corrupt" ? (
-              <div className="bg-[#fff1ef] px-3 py-2 text-xs leading-5 text-[#8d2f2f] lg:px-8" role="alert">
-                本机保存的数据无法识别。现在看到的是内置示例数据，原来的存档还没被覆盖。只有确认「恢复示例」后才会清掉无法识别的内容。
-              </div>
-            ) : null}
             {persistError ? (
               <div
                 data-testid="persist-warning"
@@ -233,8 +238,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               </div>
             ) : null}
           </header>
-          {/* key=epoch：恢复示例后整页重新挂载，表单状态清空。 */}
-          <main key={epoch} className="px-3 py-5 pb-32 lg:px-8 lg:pb-10">
+          <main className="px-3 py-5 pb-32 lg:px-8 lg:pb-10">
             {children}
           </main>
         </div>
@@ -272,30 +276,6 @@ export function AppShell({ children }: { children: ReactNode }) {
         </ul>
       </nav>
 
-      <AlertDialog open={confirmResetOpen} onOpenChange={setConfirmResetOpen}>
-        <AlertDialogContent className="w-[min(28rem,calc(100%-2rem))]" style={{ maxWidth: "28rem" }}>
-          <AlertDialogHeader className="place-items-start text-left">
-            <AlertDialogTitle>恢复内置示例数据？</AlertDialogTitle>
-            <AlertDialogDescription className="text-left">
-              将清除这台浏览器里保存的试用库存和流水，并恢复虚构的示例数据。不会影响 Tradify、monday 或任何真实业务系统。此操作不能撤销。
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <Button variant="outline" onClick={() => setConfirmResetOpen(false)}>
-              取消
-            </Button>
-            <Button
-              onClick={() => {
-                resetDemo();
-                setConfirmResetOpen(false);
-                toast.success("已恢复示例数据");
-              }}
-            >
-              确认恢复示例数据
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
       <Toaster theme="light" position="top-center" />
     </div>
   );

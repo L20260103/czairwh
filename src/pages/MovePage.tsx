@@ -3,6 +3,7 @@ import { useState } from "react";
 import { PageHeader } from "@/components/common";
 import { MovementForm } from "@/components/MovementForm";
 import { MovementList } from "@/components/MovementList";
+import { bilingualLabel } from "@/lib/format";
 import { DUPLICATE_WINDOW_MS, movementsNewestFirst } from "@/lib/inventory/inventory";
 import type { MovementType } from "@/lib/inventory/types";
 import { Link, useSearchParams } from "@/lib/router";
@@ -49,7 +50,7 @@ function MovePageContent({ initialType, initialMaterialId }: { initialType: Move
       <section className="mt-6 rounded-xl bg-white p-4 ring-1 ring-foreground/10">
         <div className="mb-3 flex items-center justify-between gap-3">
           <h2 className="font-semibold text-[#1c3144]">
-            {selectedMaterial ? `${selectedMaterial.name} 的最近流水` : "最近流水"}
+            {selectedMaterial ? `${bilingualLabel(selectedMaterial.nameZh, selectedMaterial.nameEn)} 的最近流水` : "最近流水"}
           </h2>
           <Link
             href={selectedMaterial ? `/history?material=${selectedMaterial.id}` : "/history"}
@@ -58,7 +59,7 @@ function MovePageContent({ initialType, initialMaterialId }: { initialType: Move
             在全部流水里看
           </Link>
         </div>
-        <MovementList rows={recent} materials={state.materials} />
+        <MovementList rows={recent} materials={state.materials} suppliers={state.suppliers} />
       </section>
     </div>
   );

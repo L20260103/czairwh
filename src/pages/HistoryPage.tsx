@@ -4,6 +4,8 @@ import { PageHeader } from "@/components/common";
 import { MovementList } from "@/components/MovementList";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { bilingualLabel } from "@/lib/format";
+import { categoryPath, supplierName } from "@/lib/inventory/catalog";
 import { movementsNewestFirst } from "@/lib/inventory/inventory";
 import type { MovementType } from "@/lib/inventory/types";
 import { useSearchParams } from "@/lib/router";
@@ -46,8 +48,10 @@ export function HistoryPage() {
       const material = materialById.get(row.materialId);
       return [
         material?.sku,
-        material?.name,
-        material?.category,
+        material?.nameZh,
+        material?.nameEn,
+        material ? categoryPath(state.categories, material.categoryId) : "",
+        row.supplierId ? supplierName(state.suppliers, row.supplierId) : "",
         row.operator,
         row.jobNumber,
         row.recipient,
@@ -65,7 +69,7 @@ export function HistoryPage() {
   return (
     <div>
       <PageHeader title="流水">
-        按墨尔本时间显示。变动前和变动后按流水顺序重算，所以和现存数量对得上。示例行的操作人、工单和供应商名称里带有「示例」。
+        按墨尔本时间显示。变动前和变动后按流水顺序重算，所以和现存数量对得上。入库如果选了供应商，会显示在参考那一列。
       </PageHeader>
       <div className="mb-4 grid gap-2">
         <Input
@@ -101,7 +105,7 @@ export function HistoryPage() {
         </div>
         {selectedMaterial ? (
           <p className="text-sm text-muted-foreground">
-            正在只看 {selectedMaterial.name}（{selectedMaterial.sku}）。
+            正在只看 {bilingualLabel(selectedMaterial.nameZh, selectedMaterial.nameEn)}（{selectedMaterial.sku}）。
             <button type="button" className="ml-2 text-[#1f5f78]" onClick={() => setMaterialId("")}>
               看全部物料
             </button>
@@ -110,7 +114,7 @@ export function HistoryPage() {
       </div>
       <p className="mb-3 text-xs text-muted-foreground">显示 {rows.length} 笔</p>
       <div className="rounded-xl bg-white p-3 ring-1 ring-foreground/10 sm:p-4">
-        <MovementList rows={rows} materials={state.materials} />
+        <MovementList rows={rows} materials={state.materials} suppliers={state.suppliers} />
       </div>
     </div>
   );
