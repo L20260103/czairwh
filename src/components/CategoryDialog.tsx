@@ -53,7 +53,7 @@ export function CategoryDialog({ category, onClose }: { category: Category | nul
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-lg" style={{ maxWidth: "32rem" }}>
+      <DialogContent className="sm:max-w-lg" style={{ maxWidth: "32rem" }}>
         <DialogHeader>
           <DialogTitle>{category ? "编辑类别" : "新增类别"}</DialogTitle>
           <DialogDescription>中文名和英文名至少填一个。两边都有时显示为「中文 English」。可以挂在上级下面。</DialogDescription>

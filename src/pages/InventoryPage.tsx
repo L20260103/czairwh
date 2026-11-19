@@ -1,12 +1,13 @@
 import { useMemo, useState } from "react";
 
 import { EmptyState, PageHeader, ShowMore, StockStatusBadges, useVisibleLimit } from "@/components/common";
-import { StickyToolbar } from "@/components/StickyToolbar";
+import { StickySearch } from "@/components/StickyToolbar";
 import { OptionSelect } from "@/components/OptionSelect";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { bilingualLabel, displayLocation, joinMeta, locationText } from "@/lib/format";
+import { BilingualName } from "@/components/BilingualName";
+import { displayLocation, joinMeta, locationText } from "@/lib/format";
 import { categoryPath, categorySelectOptions, descendantIds } from "@/lib/inventory/catalog";
 import { specSearchText, specSummary } from "@/lib/inventory/specs";
 import {
@@ -98,51 +99,55 @@ export function InventoryPage() {
           ? "正在连同还没入过库的目录物料一起显示。没记过流水的不标成缺货。只有「安装耗材」及其下级会标成低于最低，机器、风管和风口等显示「不提醒」。数量来自流水，不在这里直接改。名称显示为「中文 English」。"
           : "只列出在本仓库有过出入库记录的物料，数量用到 0 的也会留下。供应商目录里还没入过库的货不在这里。只有「安装耗材」及其下级会标成低于最低，其他类别显示「不提醒」。数量来自流水，不在这里直接改。需要补货的排在前面。名称显示为「中文 English」。"}
       </PageHeader>
-      <StickyToolbar>
-      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-        <Input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="搜索 SKU、名称、库位"
-          className="h-11 min-w-48 flex-1 bg-white"
-          aria-label="搜索库存"
-        />
-        <div className="w-full sm:w-48">
-          <OptionSelect
-            label="类别"
-            value={category}
-            onChange={setCategory}
-            options={[{ value: "all", label: "全部类别" }, ...categories]}
+      <StickySearch
+        search={
+          <Input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="搜索 SKU、名称、库位"
+            className="h-11 w-full min-w-0 bg-white lg:min-w-48 lg:flex-1"
+            aria-label="搜索库存"
           />
-        </div>
-        <div className="w-full sm:w-48">
-          <OptionSelect
-            label="库位"
-            value={location}
-            onChange={setLocation}
-            options={locations.map((l) => ({ value: l, label: l === "all" ? "全部库位" : displayLocation(l) }))}
-          />
-        </div>
-        <Button
-          type="button"
-          variant={lowOnly ? "default" : "outline"}
-          className={cn("h-11", !lowOnly && "bg-white")}
-          onClick={() => setLowOnly((value) => !value)}
-          aria-pressed={lowOnly}
-        >
-          只看低于最低
-        </Button>
-        <Button
-          type="button"
-          variant={showAll ? "default" : "outline"}
-          className={cn("h-11", !showAll && "bg-white")}
-          onClick={() => setShowAll((value) => !value)}
-          aria-pressed={showAll}
-        >
-          显示全部物料
-        </Button>
-      </div>
-      </StickyToolbar>
+        }
+        filters={() => (
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+            <div className="w-full sm:w-56">
+              <OptionSelect
+                label="类别"
+                value={category}
+                onChange={setCategory}
+                options={[{ value: "all", label: "全部类别" }, ...categories]}
+              />
+            </div>
+            <div className="w-full sm:w-48">
+              <OptionSelect
+                label="库位"
+                value={location}
+                onChange={setLocation}
+                options={locations.map((l) => ({ value: l, label: l === "all" ? "全部库位" : displayLocation(l) }))}
+              />
+            </div>
+            <Button
+              type="button"
+              variant={lowOnly ? "default" : "outline"}
+              className={cn("h-11", !lowOnly && "bg-white")}
+              onClick={() => setLowOnly((value) => !value)}
+              aria-pressed={lowOnly}
+            >
+              只看低于最低
+            </Button>
+            <Button
+              type="button"
+              variant={showAll ? "default" : "outline"}
+              className={cn("h-11", !showAll && "bg-white")}
+              onClick={() => setShowAll((value) => !value)}
+              aria-pressed={showAll}
+            >
+              显示全部物料
+            </Button>
+          </div>
+        )}
+      />
       <p className="mb-3 text-xs text-muted-foreground">
         显示 {rows.length} / {universe.length}
       </p>
@@ -177,33 +182,35 @@ export function InventoryPage() {
       ) : (
         <>
           <div className="hidden rounded-xl bg-white ring-1 ring-foreground/10 lg:block">
-            <Table aria-label="库存列表">
+            <Table aria-label="库存列表" className="table-fixed">
               <TableHeader>
                 <TableRow>
-                  <TableHead>SKU / 名称</TableHead>
-                  <TableHead>类别</TableHead>
-                  <TableHead>库位</TableHead>
-                  <TableHead>当前库存</TableHead>
-                  <TableHead>最低</TableHead>
-                  <TableHead>状态</TableHead>
-                  <TableHead>记账</TableHead>
+                  <TableHead className="w-[26%]">SKU / 名称</TableHead>
+                  <TableHead className="w-[20%]">类别</TableHead>
+                  <TableHead className="w-[12%]">库位</TableHead>
+                  <TableHead className="w-[12%]">当前库存</TableHead>
+                  <TableHead className="w-[8%]">最低</TableHead>
+                  <TableHead className="w-[10%]">状态</TableHead>
+                  <TableHead className="w-[12%]">记账</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {visibleRows.map(({ material, qty, stocked, consumable }) => (
                   <TableRow key={material.id}>
                     <TableCell>
-                      <div className="font-medium">{bilingualLabel(material.nameZh, material.nameEn)}</div>
+                      <div className="font-medium">
+                        <BilingualName nameZh={material.nameZh} nameEn={material.nameEn} />
+                      </div>
                       <SpecSummary specs={material.specs} />
                       <div className="mt-1 text-xs text-muted-foreground">{material.sku}</div>
                     </TableCell>
                     <TableCell>{categoryPath(state.categories, material.categoryId)}</TableCell>
                     <TableCell>{displayLocation(material.location)}</TableCell>
-                    <TableCell className="text-base font-semibold tabular-nums">
+                    <TableCell className="text-base font-semibold whitespace-nowrap tabular-nums">
                       {formatQty(qty)}{" "}
                       <span className="text-xs font-normal text-muted-foreground">{getUnit(material.unit).label}</span>
                     </TableCell>
-                    <TableCell className="tabular-nums">{formatQty(material.minStock)}</TableCell>
+                    <TableCell className="whitespace-nowrap tabular-nums">{formatQty(material.minStock)}</TableCell>
                     <TableCell>
                       <StockStatusBadges
                         minStock={material.minStock}
@@ -214,7 +221,7 @@ export function InventoryPage() {
                       />
                     </TableCell>
                     <TableCell>
-                      <div className="flex gap-1">
+                      <div className="flex flex-wrap gap-1">
                         <MoveLink id={material.id} type="receipt" label="入库" />
                         <MoveLink id={material.id} type="issue" label="出库" />
                         <MoveLink id={material.id} type="return" label="退库" />
@@ -231,7 +238,9 @@ export function InventoryPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-xs text-muted-foreground">{material.sku}</p>
-                    <h2 className="font-semibold">{bilingualLabel(material.nameZh, material.nameEn)}</h2>
+                    <h2 className="font-semibold">
+                      <BilingualName nameZh={material.nameZh} nameEn={material.nameEn} />
+                    </h2>
                     <SpecSummary specs={material.specs} />
                     <p className="text-xs text-muted-foreground">
                       {joinMeta([categoryPath(state.categories, material.categoryId), locationText(material.location)])}
@@ -239,7 +248,7 @@ export function InventoryPage() {
                   </div>
                 </div>
                 <div className="mt-3 flex items-end justify-between gap-3">
-                  <p className="text-3xl font-semibold tabular-nums">
+                  <p className="text-3xl font-semibold whitespace-nowrap tabular-nums">
                     {formatQty(qty)}
                     <span className="ml-1 text-sm font-normal text-muted-foreground">{getUnit(material.unit).label}</span>
                   </p>

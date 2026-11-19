@@ -248,7 +248,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               </div>
             ) : null}
           </header>
-          <main className="px-3 py-5 pb-32 lg:px-8 lg:pb-10">
+          <main className="min-w-0 px-3 py-5 pb-32 lg:px-8 lg:pb-10">
             {children}
           </main>
         </div>

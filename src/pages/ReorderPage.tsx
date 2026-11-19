@@ -4,7 +4,8 @@ import { PageHeader } from "@/components/common";
 import { StickyToolbar } from "@/components/StickyToolbar";
 import { Button } from "@/components/ui/button";
 import { downloadFile, reorderCsv } from "@/lib/csv";
-import { bilingualLabel, formatAud, joinMeta, locationText } from "@/lib/format";
+import { BilingualName } from "@/components/BilingualName";
+import { formatAud, joinMeta, locationText } from "@/lib/format";
 import { categoryPath, cheapestOffers, supplierName } from "@/lib/inventory/catalog";
 import { formatQty, getReorderSuggestions } from "@/lib/inventory/inventory";
 import { getUnit } from "@/lib/inventory/units";
@@ -60,7 +61,9 @@ export function ReorderPage() {
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="font-semibold">{bilingualLabel(item.material.nameZh, item.material.nameEn)}</h2>
+                    <h2 className="font-semibold">
+                      <BilingualName nameZh={item.material.nameZh} nameEn={item.material.nameEn} />
+                    </h2>
                   </div>
                   <p className="mt-1 text-sm text-muted-foreground">
                     {joinMeta([

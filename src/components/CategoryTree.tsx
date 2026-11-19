@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronRight } from "lucide-react";
 
+import { BilingualName } from "@/components/BilingualName";
 import { bilingualLabel } from "@/lib/format";
 import { categoriesInTreeOrder } from "@/lib/inventory/catalog";
 import type { Category } from "@/lib/inventory/types";
@@ -125,7 +126,7 @@ function TreeBranch({
   const label = bilingualLabel(node.category.nameZh, node.category.nameEn);
   return (
     <div>
-      <div className="flex items-stretch" style={{ paddingLeft: depth * 12 }}>
+      <div className="flex min-w-0 items-stretch" style={{ paddingLeft: depth * 12 }}>
         {hasChildren ? (
           <button
             type="button"
@@ -141,6 +142,8 @@ function TreeBranch({
         )}
         <TreeButton
           label={label}
+          nameZh={node.category.nameZh}
+          nameEn={node.category.nameEn}
           count={counts.get(node.category.id) ?? 0}
           selected={selectedId === node.category.id}
           depth={0}
@@ -168,6 +171,8 @@ function TreeBranch({
 
 function TreeButton({
   label,
+  nameZh,
+  nameEn,
   count,
   selected,
   depth,
@@ -175,6 +180,8 @@ function TreeButton({
   categoryId,
 }: {
   label: string;
+  nameZh?: string;
+  nameEn?: string;
   count: number;
   selected: boolean;
   depth: number;
@@ -195,7 +202,9 @@ function TreeButton({
         selected ? "bg-[#e7f2f6] font-medium text-[#1f5f78]" : "text-[#1c3144] hover:bg-[#f4f7f9]",
       )}
     >
-      <span className="min-w-0 flex-1 truncate">{label}</span>
+      <span className="min-w-0 flex-1 break-words whitespace-normal">
+        {nameZh !== undefined ? <BilingualName nameZh={nameZh} nameEn={nameEn ?? ""} /> : label}
+      </span>
       <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">{count}</span>
     </button>
   );

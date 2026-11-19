@@ -36,12 +36,35 @@ export function joinMeta(parts: Array<string | null | undefined>): string {
   return text || "—";
 }
 
-/** 中英都有时显示「中文 English」，只有一边时显示那一边。 */
+function normalizeName(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+/**
+ * 一边已经包含另一边（忽略大小写和连续空格）时，再拼一次就是重复。
+ * 例如中文名里已经写了 WiFi Kit，或中英文都是 iZone。
+ */
+export function nameRepeats(nameZh: string, nameEn: string): boolean {
+  const zh = normalizeName(nameZh);
+  const en = normalizeName(nameEn);
+  if (!zh || !en) return true;
+  return zh.includes(en) || en.includes(zh);
+}
+
+/**
+ * 纯文本用的名称。重复的英文只留一次；两边都有且互不包含时仍是「中文 English」。
+ * 界面上互不包含的英文用 BilingualName 单独排成浅色第二行。
+ */
 export function bilingualLabel(nameZh: string, nameEn: string): string {
   const zh = nameZh.trim();
   const en = nameEn.trim();
-  if (zh && en) return `${zh} ${en}`;
-  return zh || en;
+  if (!zh) return en;
+  if (!en) return zh;
+  const zhKey = normalizeName(zh);
+  const enKey = normalizeName(en);
+  if (zhKey.includes(enKey)) return zh;
+  if (enKey.includes(zhKey)) return en;
+  return `${zh} ${en}`;
 }
 
 /** 未含 GST 的澳元价格，例如 A$12.50。 */

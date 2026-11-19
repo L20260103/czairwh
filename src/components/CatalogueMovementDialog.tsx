@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { BilingualName } from "@/components/BilingualName";
 import { bilingualLabel, formatAud, movementTypeLabel } from "@/lib/format";
 import { defaultOperatorName, preferredSupplierId } from "@/lib/inventory/catalog";
 import { formatQty, getJobBalance, getOnHand, validateMovement } from "@/lib/inventory/inventory";
@@ -106,7 +107,7 @@ export function CatalogueMovementDialog({
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent
-        className="max-h-[85dvh] overflow-y-auto sm:max-w-lg"
+        className="sm:max-w-lg"
         style={{ maxWidth: "32rem" }}
         data-testid="catalogue-movement-dialog"
         data-movement-type={type}
@@ -115,7 +116,8 @@ export function CatalogueMovementDialog({
       >
         <DialogHeader>
           <DialogTitle>
-            {title} · {bilingualLabel(material.nameZh, material.nameEn)}
+            {title}
+            <BilingualName nameZh={material.nameZh} nameEn={material.nameEn} className="mt-1 block font-normal" />
           </DialogTitle>
           <DialogDescription>
             {material.sku} · 当前库存 {formatQty(onHand)} {unit.label}。记入和出入库页同一本流水，出库不能超过当前库存。

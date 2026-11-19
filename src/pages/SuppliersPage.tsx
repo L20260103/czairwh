@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 
 import { EmptyState, PageHeader } from "@/components/common";
-import { StickyToolbar } from "@/components/StickyToolbar";
+import { BilingualName } from "@/components/BilingualName";
+import { StickySearch, StickyToolbar } from "@/components/StickyToolbar";
 import { OptionSelect } from "@/components/OptionSelect";
 import { SupplierDialog } from "@/components/SupplierDialog";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -182,23 +183,25 @@ function SupplierProductsPage({ supplierId }: { supplierId: string }) {
           编辑
         </Button>
       </div>
-      <StickyToolbar>
-        <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_18rem]">
+      <StickySearch
+        search={
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="搜索货号、品名、SKU、名称或型号"
-            className="h-11 bg-white"
+            placeholder="搜索货号、品名或 SKU"
+            className="h-11 w-full bg-white"
             aria-label="搜索供应商产品"
           />
+        }
+        filters={() => (
           <OptionSelect
             label="类别"
             value={category}
             onChange={setCategory}
             options={[{ value: "all", label: "全部类别" }, ...categories]}
           />
-        </div>
-      </StickyToolbar>
+        )}
+      />
       <p className="mb-3 text-xs text-muted-foreground">
         {filtered.length === 0
           ? `显示 0 / ${formatCount(rows.length)}`
@@ -264,24 +267,24 @@ function BackLink() {
 function ProductTable({ rows }: { rows: ProductRow[] }) {
   return (
     <div className="hidden rounded-xl bg-white ring-1 ring-foreground/10 lg:block">
-      <Table aria-label="供应商产品">
+      <Table aria-label="供应商产品" className="table-fixed">
         <TableHeader>
           <TableRow>
-            <TableHead>货号 / Code</TableHead>
-            <TableHead>品名 / Product</TableHead>
-            <TableHead>类别 / Category</TableHead>
-            <TableHead>未含 GST / ex GST</TableHead>
+            <TableHead className="w-[16%]">货号 / Code</TableHead>
+            <TableHead className="w-[40%]">品名 / Product</TableHead>
+            <TableHead className="w-[28%]">类别 / Category</TableHead>
+            <TableHead className="w-[16%]">未含 GST / ex GST</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {rows.map((row) => (
             <TableRow key={row.offer.id}>
-              <TableCell className="whitespace-nowrap">{row.offer.supplierCode || "—"}</TableCell>
+              <TableCell className="break-all whitespace-normal">{row.offer.supplierCode || "—"}</TableCell>
               <TableCell>
                 <ProductName row={row} />
               </TableCell>
               <TableCell>{row.material ? row.category || "未分类" : "—"}</TableCell>
-              <TableCell className="tabular-nums">{formatAud(row.offer.priceExGst)}</TableCell>
+              <TableCell className="whitespace-nowrap tabular-nums">{formatAud(row.offer.priceExGst)}</TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -311,7 +314,9 @@ function ProductName({ row }: { row: ProductRow }) {
   const alreadyShown = row.material ? row.productName.toLowerCase().includes(supplierName.toLowerCase()) : false;
   return (
     <div>
-      <div className="font-medium">{row.material ? row.productName : "已缺失物料"}</div>
+      <div className="font-medium">
+        {row.material ? <BilingualName nameZh={row.material.nameZh} nameEn={row.material.nameEn} /> : "已缺失物料"}
+      </div>
       <p className="mt-1 text-xs text-muted-foreground">
         {joinMeta([row.material?.sku, supplierName && !alreadyShown ? supplierName : ""])}
       </p>

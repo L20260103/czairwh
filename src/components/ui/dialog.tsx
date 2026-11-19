@@ -26,28 +26,39 @@ function DialogOverlay({ className, ...props }: DialogPrimitive.Backdrop.Props) 
   );
 }
 
+function isDialogHeader(child: React.ReactNode): child is React.ReactElement {
+  return React.isValidElement(child) && child.type === DialogHeader;
+}
+
 function DialogContent({
   className,
   children,
   showCloseButton = true,
   ...props
 }: DialogPrimitive.Popup.Props & { showCloseButton?: boolean }) {
+  const items = React.Children.toArray(children);
+  const header = items.filter(isDialogHeader);
+  const body = items.filter((child) => !isDialogHeader(child));
   return (
     <DialogPortal>
       <DialogOverlay />
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "fixed top-1/2 left-1/2 z-50 flex w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col rounded-xl bg-popover text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           className,
+          "max-h-[min(90dvh,calc(100dvh-2rem))] overflow-hidden",
         )}
         {...props}
       >
-        {children}
+        {header}
+        <div className="min-h-0 overflow-y-auto px-4 py-4">
+          <div className="grid gap-4">{body}</div>
+        </div>
         {showCloseButton && (
           <DialogPrimitive.Close
             data-slot="dialog-close"
-            render={<Button variant="ghost" className="absolute top-2 right-2" size="icon-sm" />}
+            render={<Button variant="ghost" className="absolute top-2 right-2 z-10 bg-popover" size="icon-sm" />}
           >
             <XIcon />
             <span className="sr-only">关闭</span>
@@ -59,7 +70,13 @@ function DialogContent({
 }
 
 function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
-  return <div data-slot="dialog-header" className={cn("flex flex-col gap-2", className)} {...props} />;
+  return (
+    <div
+      data-slot="dialog-header"
+      className={cn("flex shrink-0 flex-col gap-2 px-4 pt-4 pr-12", className)}
+      {...props}
+    />
+  );
 }
 
 function DialogFooter({
@@ -71,7 +88,10 @@ function DialogFooter({
   return (
     <div
       data-slot="dialog-footer"
-      className={cn("-mx-4 -mb-4 flex flex-col-reverse gap-2 rounded-b-xl border-t bg-muted/50 p-4 sm:flex-row sm:justify-end", className)}
+      className={cn(
+        "-mx-4 -mb-4 flex flex-col-reverse gap-2 rounded-b-xl border-t bg-muted/50 p-4 sm:flex-row sm:justify-end [&_button]:h-11",
+        className,
+      )}
       {...props}
     >
       {children}
@@ -84,7 +104,7 @@ function DialogTitle({ className, ...props }: DialogPrimitive.Title.Props) {
   return (
     <DialogPrimitive.Title
       data-slot="dialog-title"
-      className={cn("font-heading text-base leading-none font-medium", className)}
+      className={cn("font-heading text-base leading-snug font-medium break-words", className)}
       {...props}
     />
   );

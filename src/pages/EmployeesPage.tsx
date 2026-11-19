@@ -2,7 +2,6 @@ import { useMemo, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 
 import { EmptyState, FormField, PageHeader } from "@/components/common";
-import { StickyToolbar } from "@/components/StickyToolbar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -88,8 +87,7 @@ export function EmployeesPage() {
         操作人和领用人都从这里的在职员工里选，按排序出现在出入库和流水编辑的下拉里。停用后不再出现在下拉里，已经写在流水上的名字不会被改掉。不在名单上的旧值（例如「待补」）会继续显示，直到你改选别人。
       </PageHeader>
       <div className="max-w-2xl">
-      <StickyToolbar>
-      <section className="rounded-xl bg-white p-4 ring-1 ring-foreground/10 sm:p-5">
+      <section className="mb-4 rounded-xl bg-white p-4 ring-1 ring-foreground/10 sm:p-5">
         <h2 className="text-sm font-semibold text-[#1c3144]">新增员工 / Add staff</h2>
         <form onSubmit={handleAdd} className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start" noValidate>
           <FormField label="姓名 / Name" htmlFor="employee-name" error={addErrors.name ?? addErrors.form} hint="1 到 40 个字，不能和现有员工重名。">
@@ -108,7 +106,6 @@ export function EmployeesPage() {
           </Button>
         </form>
       </section>
-      </StickyToolbar>
 
       <section className="rounded-xl bg-white p-4 ring-1 ring-foreground/10 sm:p-5">
         <div className="flex items-baseline justify-between gap-3">

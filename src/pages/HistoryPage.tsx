@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 
 import { PageHeader } from "@/components/common";
-import { StickyToolbar } from "@/components/StickyToolbar";
+import { StickySearch } from "@/components/StickyToolbar";
 import { MovementList } from "@/components/MovementList";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -73,51 +73,55 @@ export function HistoryPage() {
       <PageHeader title="流水">
         按墨尔本时间显示。变动前和变动后按流水顺序重算，所以和现存数量对得上。入库如果选了供应商，会显示在参考那一列。操作人、工单、领用、参考和备注可以改；数量、物料、类型和时间不能改。
       </PageHeader>
-      <StickyToolbar>
-      <div className="grid gap-2">
-        <Input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="搜索 SKU、名称、库位、工单、操作人、备注"
-          className="h-11 bg-white"
-          aria-label="搜索流水"
-        />
-        <div className="flex flex-col gap-2 sm:flex-row">
+      <StickySearch
+        search={
           <Input
-            value={job}
-            onChange={(event) => setJob(event.target.value)}
-            placeholder="按工单号筛选"
-            className="h-11 bg-white sm:max-w-xs"
-            aria-label="按工单号筛选"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="搜索 SKU、名称、工单或备注"
+            className="h-11 w-full bg-white"
+            aria-label="搜索流水"
           />
-          <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="流水类型">
-            {TYPE_FILTERS.map((filter) => (
-              <Button
-                key={filter.id}
-                type="button"
-                variant={type === filter.id ? "default" : "outline"}
-                className={cn("h-11", type !== filter.id && "bg-white")}
-                aria-checked={type === filter.id}
-                role="radio"
-                onClick={() => setType(filter.id)}
-              >
-                {filter.label}
-              </Button>
-            ))}
+        }
+        filters={() => (
+          <div className="grid gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Input
+                value={job}
+                onChange={(event) => setJob(event.target.value)}
+                placeholder="按工单号筛选"
+                className="h-11 bg-white sm:max-w-xs"
+                aria-label="按工单号筛选"
+              />
+              <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="流水类型">
+                {TYPE_FILTERS.map((filter) => (
+                  <Button
+                    key={filter.id}
+                    type="button"
+                    variant={type === filter.id ? "default" : "outline"}
+                    className={cn("h-11", type !== filter.id && "bg-white")}
+                    aria-checked={type === filter.id}
+                    role="radio"
+                    onClick={() => setType(filter.id)}
+                  >
+                    {filter.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            {selectedMaterial ? (
+              <p className="text-sm break-words text-muted-foreground">
+                正在只看 {bilingualLabel(selectedMaterial.nameZh, selectedMaterial.nameEn)}（{selectedMaterial.sku}）。
+                <button type="button" className="ml-2 text-[#1f5f78]" onClick={() => setMaterialId("")}>
+                  看全部物料
+                </button>
+              </p>
+            ) : null}
           </div>
-        </div>
-        {selectedMaterial ? (
-          <p className="text-sm text-muted-foreground">
-            正在只看 {bilingualLabel(selectedMaterial.nameZh, selectedMaterial.nameEn)}（{selectedMaterial.sku}）。
-            <button type="button" className="ml-2 text-[#1f5f78]" onClick={() => setMaterialId("")}>
-              看全部物料
-            </button>
-          </p>
-        ) : null}
-      </div>
-      </StickyToolbar>
+        )}
+      />
       <p className="mb-3 text-xs text-muted-foreground">显示 {rows.length} 笔</p>
-      <div className="rounded-xl bg-white p-3 ring-1 ring-foreground/10 sm:p-4">
+      <div className="min-w-0 rounded-xl bg-white p-3 ring-1 ring-foreground/10 sm:p-4">
         <MovementList rows={rows} materials={state.materials} suppliers={state.suppliers} editable />
       </div>
     </div>
