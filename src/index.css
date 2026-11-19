@@ -55,6 +55,9 @@
 
 /* Coolzone 配色（浅色）。 */
 :root {
+  /* 顶栏和列表吸顶条的实测高度。JS 在布局前写入，这里只是初值。 */
+  --app-header-offset: 0px;
+  --sticky-toolbar-height: 0px;
   --background: oklch(0.945 0.01 230);
   --foreground: oklch(0.28 0.025 250);
   --card: oklch(0.995 0.002 230);

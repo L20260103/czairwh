@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 
 import { EmptyState, PageHeader, ShowMore, StockStatusBadges, useVisibleLimit } from "@/components/common";
+import { StickyToolbar } from "@/components/StickyToolbar";
 import { OptionSelect } from "@/components/OptionSelect";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -97,7 +98,8 @@ export function InventoryPage() {
           ? "正在连同还没入过库的目录物料一起显示。没记过流水的不标成缺货。只有「安装耗材」及其下级会标成低于最低，机器、风管和风口等显示「不提醒」。数量来自流水，不在这里直接改。名称显示为「中文 English」。"
           : "只列出在本仓库有过出入库记录的物料，数量用到 0 的也会留下。供应商目录里还没入过库的货不在这里。只有「安装耗材」及其下级会标成低于最低，其他类别显示「不提醒」。数量来自流水，不在这里直接改。需要补货的排在前面。名称显示为「中文 English」。"}
       </PageHeader>
-      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+      <StickyToolbar>
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         <Input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
@@ -140,6 +142,7 @@ export function InventoryPage() {
           显示全部物料
         </Button>
       </div>
+      </StickyToolbar>
       <p className="mb-3 text-xs text-muted-foreground">
         显示 {rows.length} / {universe.length}
       </p>

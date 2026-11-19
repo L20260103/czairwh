@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { CatalogueMovementDialog } from "@/components/CatalogueMovementDialog";
 import { CategoryTree } from "@/components/CategoryTree";
 import { EmptyState, PageHeader } from "@/components/common";
+import { StickyToolbar } from "@/components/StickyToolbar";
 import { MaterialDetailDialog } from "@/components/MaterialDetailDialog";
 import { MaterialDialog } from "@/components/MaterialDialog";
 import { OptionSelect } from "@/components/OptionSelect";
@@ -223,7 +224,13 @@ export function MaterialsPage() {
       </PageHeader>
 
       <div className="lg:grid lg:grid-cols-[16rem_minmax(0,1fr)] lg:items-start lg:gap-4">
-        <aside className="mb-4 hidden rounded-xl bg-white p-3 ring-1 ring-foreground/10 lg:sticky lg:top-24 lg:mb-0 lg:block lg:max-h-[calc(100dvh-7.5rem)] lg:overflow-auto">
+        <aside
+          className="mb-4 hidden rounded-xl bg-white p-3 ring-1 ring-foreground/10 lg:sticky lg:z-20 lg:mb-0 lg:block lg:overflow-auto"
+          style={{
+            top: "calc(var(--app-header-offset, 0px) + 0.75rem)",
+            maxHeight: "calc(100dvh - var(--app-header-offset, 0px) - 1.5rem)",
+          }}
+        >
           <p className="mb-2 px-1 text-xs font-medium text-muted-foreground">类别</p>
           <CategoryTree
             categories={state.categories}
@@ -235,118 +242,102 @@ export function MaterialsPage() {
         </aside>
 
         <div className="min-w-0">
-          <div className="mb-3 lg:hidden">
-            <Button
-              type="button"
-              variant="outline"
-              className="h-11 w-full justify-between bg-white"
-              onClick={() => setTreeOpen(true)}
-            >
-              <span className="truncate">
-                {selectedCategory ? bilingualLabel(selectedCategory.nameZh, selectedCategory.nameEn) : "全部类别"}
-              </span>
-              <span className="text-xs text-muted-foreground">筛选</span>
-            </Button>
-            <Sheet open={treeOpen} onOpenChange={setTreeOpen}>
-              <SheetContent side="left" className="w-80">
-                <SheetHeader>
-                  <SheetTitle>类别</SheetTitle>
-                  <SheetDescription>点一个类别，只看它和它的下级。</SheetDescription>
-                </SheetHeader>
-                <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-4">
-                  <CategoryTree
-                    categories={state.categories}
-                    counts={counts}
-                    total={state.materials.length}
-                    selectedId={categoryId}
-                    onSelect={(id) => {
-                      setParam("category", id);
-                      setTreeOpen(false);
-                    }}
+          <StickyToolbar>
+            <div className="grid gap-2">
+              <div className="lg:hidden">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-10 w-full justify-between bg-white"
+                  onClick={() => setTreeOpen(true)}
+                >
+                  <span className="truncate">
+                    {selectedCategory ? bilingualLabel(selectedCategory.nameZh, selectedCategory.nameEn) : "全部类别"}
+                  </span>
+                  <span className="text-xs text-muted-foreground">筛选</span>
+                </Button>
+                <Sheet open={treeOpen} onOpenChange={setTreeOpen}>
+                  <SheetContent side="left" className="w-80">
+                    <SheetHeader>
+                      <SheetTitle>类别</SheetTitle>
+                      <SheetDescription>点一个类别，只看它和它的下级。</SheetDescription>
+                    </SheetHeader>
+                    <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-4">
+                      <CategoryTree
+                        categories={state.categories}
+                        counts={counts}
+                        total={state.materials.length}
+                        selectedId={categoryId}
+                        onSelect={(id) => {
+                          setParam("category", id);
+                          setTreeOpen(false);
+                        }}
+                      />
+                    </div>
+                  </SheetContent>
+                </Sheet>
+              </div>
+
+              <div className="flex gap-2">
+                <Input
+                  value={searchInput}
+                  onChange={(event) => setSearchInput(event.target.value)}
+                  placeholder="搜索 SKU、名称或规格，例如 250-200"
+                  className="h-11 min-w-0 flex-1 bg-white"
+                  aria-label="搜索物料目录"
+                  data-testid="catalogue-search"
+                />
+                <Button className="h-11 shrink-0 px-3 sm:px-4" onClick={() => setEditing("new")}>
+                  新增物料
+                </Button>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="w-full sm:w-56">
+                  <OptionSelect
+                    label="供应商"
+                    value={supplierOptions.some((option) => option.value === (supplierId || "all")) ? supplierId || "all" : "all"}
+                    onChange={(value) => setParam("supplier", value === "all" ? "" : value)}
+                    options={supplierOptions}
                   />
                 </div>
-              </SheetContent>
-            </Sheet>
-          </div>
+                <FilterToggle pressed={stockOnly} onClick={() => setParam("stock", stockOnly ? "" : "1")} testId="filter-stock">
+                  只看有库存
+                </FilterToggle>
+                <FilterToggle
+                  pressed={consumableOnly}
+                  onClick={() => setParam("consumable", consumableOnly ? "" : "1")}
+                  testId="filter-consumable"
+                >
+                  只看耗材
+                </FilterToggle>
+                {filtersActive ? (
+                  <button
+                    type="button"
+                    className="h-11 px-1 text-sm text-[#1f5f78]"
+                    onClick={() => {
+                      writtenQuery.current = "";
+                      setSearchInput("");
+                      replaceSearchParams((nextParams) => {
+                        nextParams.delete("q");
+                        nextParams.delete("category");
+                        nextParams.delete("supplier");
+                        nextParams.delete("stock");
+                        nextParams.delete("consumable");
+                        nextParams.delete("page");
+                      });
+                    }}
+                  >
+                    清除筛选
+                  </button>
+                ) : null}
+              </div>
 
-          <div className="mb-3 flex flex-col gap-2 sm:flex-row">
-            <Input
-              value={searchInput}
-              onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="搜索 SKU、名称或规格，例如 250-200"
-              className="h-11 bg-white"
-              aria-label="搜索物料目录"
-              data-testid="catalogue-search"
-            />
-            <Button className="h-11 px-4" onClick={() => setEditing("new")}>
-              新增物料
-            </Button>
-          </div>
-
-          <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-            <div className="w-full sm:w-56">
-              <OptionSelect
-                label="供应商"
-                value={supplierOptions.some((option) => option.value === (supplierId || "all")) ? supplierId || "all" : "all"}
-                onChange={(value) => setParam("supplier", value === "all" ? "" : value)}
-                options={supplierOptions}
-              />
+              {recentMaterials.length > 0 ? (
+                <RecentMaterials materials={recentMaterials} onHand={onHand} onOpen={openDetail} />
+              ) : null}
             </div>
-            <FilterToggle pressed={stockOnly} onClick={() => setParam("stock", stockOnly ? "" : "1")} testId="filter-stock">
-              只看有库存
-            </FilterToggle>
-            <FilterToggle
-              pressed={consumableOnly}
-              onClick={() => setParam("consumable", consumableOnly ? "" : "1")}
-              testId="filter-consumable"
-            >
-              只看耗材
-            </FilterToggle>
-            {filtersActive ? (
-              <button
-                type="button"
-                className="h-11 px-1 text-sm text-[#1f5f78]"
-                onClick={() => {
-                  writtenQuery.current = "";
-                  setSearchInput("");
-                  replaceSearchParams((nextParams) => {
-                    nextParams.delete("q");
-                    nextParams.delete("category");
-                    nextParams.delete("supplier");
-                    nextParams.delete("stock");
-                    nextParams.delete("consumable");
-                    nextParams.delete("page");
-                  });
-                }}
-              >
-                清除筛选
-              </button>
-            ) : null}
-          </div>
-
-          {recentMaterials.length > 0 ? (
-            <section className="mb-4" aria-label="最近用过">
-              <h2 className="mb-2 text-xs font-medium text-muted-foreground">最近用过</h2>
-              <ul className="flex gap-2 overflow-x-auto pb-1">
-                {recentMaterials.map((material) => (
-                  <li key={material.id} className="shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => openDetail(material)}
-                      className="max-w-56 rounded-full bg-white px-3 py-1.5 text-left ring-1 ring-foreground/10 hover:ring-[#1f5f78]"
-                    >
-                      <span className="block truncate text-sm font-medium text-[#1c3144]">
-                        {bilingualLabel(material.nameZh, material.nameEn)}
-                      </span>
-                      <span className="block truncate text-[11px] text-muted-foreground">
-                        {material.sku} · {formatQty(fromCents(onHand.get(material.id) ?? 0))}
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
+          </StickyToolbar>
 
           <p className="mb-3 text-xs text-muted-foreground" data-testid="catalogue-summary">
             {loading ? "正在读取目录…" : `第 ${start}–${end} 条，共 ${total} 条`}
@@ -504,6 +495,62 @@ export function MaterialsPage() {
         />
       ) : null}
     </div>
+  );
+}
+
+function RecentMaterials({
+  materials,
+  onHand,
+  onOpen,
+}: {
+  materials: Material[];
+  onHand: Map<string, number>;
+  onOpen: (material: Material) => void;
+}) {
+  return (
+    <>
+      <details className="sm:hidden">
+        <summary className="cursor-pointer text-xs font-medium text-muted-foreground">最近用过</summary>
+        <div className="mt-2">
+          <RecentChips materials={materials} onHand={onHand} onOpen={onOpen} />
+        </div>
+      </details>
+      <section className="hidden items-center gap-2 sm:flex" aria-label="最近用过">
+        <h2 className="shrink-0 text-xs font-medium text-muted-foreground">最近用过</h2>
+        <RecentChips materials={materials} onHand={onHand} onOpen={onOpen} />
+      </section>
+    </>
+  );
+}
+
+function RecentChips({
+  materials,
+  onHand,
+  onOpen,
+}: {
+  materials: Material[];
+  onHand: Map<string, number>;
+  onOpen: (material: Material) => void;
+}) {
+  return (
+    <ul className="flex min-w-0 gap-2 overflow-x-auto overflow-y-clip">
+      {materials.map((material) => (
+        <li key={material.id} className="shrink-0">
+          <button
+            type="button"
+            onClick={() => onOpen(material)}
+            className="max-w-48 rounded-full bg-white px-3 py-1 text-left ring-1 ring-foreground/10 hover:ring-[#1f5f78] sm:max-w-56"
+          >
+            <span className="block truncate text-sm font-medium text-[#1c3144]">
+              {bilingualLabel(material.nameZh, material.nameEn)}
+            </span>
+            <span className="block truncate text-[11px] text-muted-foreground">
+              {material.sku} · {formatQty(fromCents(onHand.get(material.id) ?? 0))}
+            </span>
+          </button>
+        </li>
+      ))}
+    </ul>
   );
 }
 

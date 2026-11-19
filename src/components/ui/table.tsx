@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 
 function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
-    <div data-slot="table-container" className="relative w-full overflow-x-auto">
+    <div data-slot="table-container" className="relative w-full overflow-x-auto overflow-y-clip">
       <table data-slot="table" className={cn("w-full caption-bottom text-sm", className)} {...props} />
     </div>
   );
@@ -31,14 +31,18 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
   );
 }
 
-function TableHead({ className, ...props }: React.ComponentProps<"th">) {
+function TableHead({ className, style, ...props }: React.ComponentProps<"th">) {
   return (
     <th
       data-slot="table-head"
       className={cn(
-        "h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&:has([role=checkbox])]:pr-0",
+        "sticky z-10 h-10 bg-white px-2 text-left align-middle font-medium whitespace-nowrap text-foreground shadow-[0_1px_0_#e4ebf0] [&:has([role=checkbox])]:pr-0",
         className,
       )}
+      style={{
+        top: "calc(var(--app-header-offset, 0px) + var(--sticky-toolbar-height, 0px) - 2px)",
+        ...style,
+      }}
       {...props}
     />
   );

@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 
 import { EmptyState, PageHeader } from "@/components/common";
+import { StickyToolbar } from "@/components/StickyToolbar";
 import { OptionSelect } from "@/components/OptionSelect";
 import { SupplierDialog } from "@/components/SupplierDialog";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -51,11 +52,11 @@ function SupplierDirectory() {
       <PageHeader title="供应商">
         这里维护供应商名称和联系方式。报价多的时候点「查看产品」分页看，不在卡片里铺开。货号、品名和未含 GST 价格仍写在物料上。
       </PageHeader>
-      <div className="mb-4">
+      <StickyToolbar>
         <Button className="h-11 px-4" onClick={() => setEditing("new")}>
           新增供应商
         </Button>
-      </div>
+      </StickyToolbar>
       {suppliers.length === 0 ? (
         <EmptyState title="还没有供应商">新增后，就可以在物料上记录他们的货号和价格，入库时也可以选他们。</EmptyState>
       ) : (
@@ -181,21 +182,23 @@ function SupplierProductsPage({ supplierId }: { supplierId: string }) {
           编辑
         </Button>
       </div>
-      <div className="mb-4 grid gap-2 md:grid-cols-[minmax(0,1fr)_18rem]">
-        <Input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="搜索货号、品名、SKU、名称或型号"
-          className="h-11 bg-white"
-          aria-label="搜索供应商产品"
-        />
-        <OptionSelect
-          label="类别"
-          value={category}
-          onChange={setCategory}
-          options={[{ value: "all", label: "全部类别" }, ...categories]}
-        />
-      </div>
+      <StickyToolbar>
+        <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_18rem]">
+          <Input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="搜索货号、品名、SKU、名称或型号"
+            className="h-11 bg-white"
+            aria-label="搜索供应商产品"
+          />
+          <OptionSelect
+            label="类别"
+            value={category}
+            onChange={setCategory}
+            options={[{ value: "all", label: "全部类别" }, ...categories]}
+          />
+        </div>
+      </StickyToolbar>
       <p className="mb-3 text-xs text-muted-foreground">
         {filtered.length === 0
           ? `显示 0 / ${formatCount(rows.length)}`

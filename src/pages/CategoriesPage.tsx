@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { CategoryDialog } from "@/components/CategoryDialog";
 import { EmptyState, PageHeader } from "@/components/common";
+import { StickyToolbar } from "@/components/StickyToolbar";
 import { Button } from "@/components/ui/button";
 import { bilingualLabel } from "@/lib/format";
 import { categoriesInTreeOrder } from "@/lib/inventory/catalog";
@@ -19,11 +20,11 @@ export function CategoriesPage() {
       <PageHeader title="类别">
         物料必须选一个类别。中文名和英文名至少填一个，两边都有时显示为「中文 English」。可以有上级，例如顶级「风管和出风 Ducting & Air Distribution」下面再放子类。类别清单不写在程序里。
       </PageHeader>
-      <div className="mb-4">
+      <StickyToolbar>
         <Button className="h-11 px-4" onClick={() => setEditing("new")}>
           新增类别
         </Button>
-      </div>
+      </StickyToolbar>
       {rows.length === 0 ? (
         <EmptyState title="还没有类别">先新增顶级类别，再按需要加下级。空库不会自带类别。</EmptyState>
       ) : (

@@ -1,6 +1,7 @@
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/common";
+import { StickyToolbar } from "@/components/StickyToolbar";
 import { Button } from "@/components/ui/button";
 import { downloadFile, reorderCsv } from "@/lib/csv";
 import { bilingualLabel, formatAud, joinMeta, locationText } from "@/lib/format";
@@ -37,12 +38,14 @@ export function ReorderPage() {
       <PageHeader title="待补货">
         只看已经入过库、并且类别属于「安装耗材」或其下级的物料。机器、风管、风口和其他类别不会出现在这里。供应商目录里还没有流水的货不算缺货。当前库存低于最低库存时才会出现，数量用到 0 的在库耗材仍会列出。建议补货量 = 最低库存 − 当前库存，只补到最低线。这里没有最高库存，也没有采购批量。这些数字不会发送给供应商，也不会写入 Tradify 或 monday。
       </PageHeader>
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <Button className="h-11 px-4" onClick={exportCsv} disabled={suggestions.length === 0}>
-          导出建议 CSV
-        </Button>
-        <p className="text-sm text-muted-foreground">导出是文件下载，不是下单。</p>
-      </div>
+      <StickyToolbar>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button className="h-11 px-4" onClick={exportCsv} disabled={suggestions.length === 0}>
+            导出建议 CSV
+          </Button>
+          <p className="text-sm text-muted-foreground">导出是文件下载，不是下单。</p>
+        </div>
+      </StickyToolbar>
       {suggestions.length === 0 ? (
         <div className="rounded-xl border border-dashed border-[#c9d5df] bg-white/70 px-4 py-10 text-center">
           <p className="font-medium text-[#1c3144]">目前没有低于最低库存的在库耗材</p>
