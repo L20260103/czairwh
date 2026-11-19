@@ -3,7 +3,8 @@ import { Fragment } from "react";
 import { MovementList } from "@/components/MovementList";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { bilingualLabel, formatAud, joinMeta, locationText, movementTypeLabel } from "@/lib/format";
+import { BilingualName } from "@/components/BilingualName";
+import { formatAud, joinMeta, locationText, movementTypeLabel } from "@/lib/format";
 import { categoryPath, supplierName } from "@/lib/inventory/catalog";
 import { formatQty, getOnHand, movementsNewestFirst, stockedMaterialIds } from "@/lib/inventory/inventory";
 import { visibleSpecEntries } from "@/lib/inventory/specs";
@@ -36,13 +37,14 @@ export function MaterialDetailDialog({
     .filter((row) => row.materialId === material.id)
     .slice(0, 8);
   const materials = state.materials.some((item) => item.id === material.id) ? state.materials : [...state.materials, material];
-  const name = bilingualLabel(material.nameZh, material.nameEn);
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-3xl" style={{ maxWidth: "48rem" }} data-testid="material-detail">
+      <DialogContent className="sm:max-w-3xl" style={{ maxWidth: "48rem" }} data-testid="material-detail">
         <DialogHeader>
-          <DialogTitle>{name}</DialogTitle>
+          <DialogTitle>
+            <BilingualName nameZh={material.nameZh} nameEn={material.nameEn} />
+          </DialogTitle>
           <DialogDescription>
             {joinMeta([material.sku, categoryPath(state.categories, material.categoryId) || "未分类", locationText(material.location)])}
           </DialogDescription>
@@ -51,7 +53,7 @@ export function MaterialDetailDialog({
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="text-xs text-muted-foreground">当前库存</p>
-            <p className="text-3xl font-semibold tabular-nums text-[#1c3144]" data-testid="detail-stock">
+            <p className="text-3xl font-semibold whitespace-nowrap tabular-nums text-[#1c3144]" data-testid="detail-stock">
               {formatQty(onHand)}
               <span className="ml-1 text-sm font-normal text-muted-foreground">{unit.label}</span>
             </p>

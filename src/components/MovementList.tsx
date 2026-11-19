@@ -3,7 +3,8 @@ import { useState } from "react";
 import { MovementEditDialog } from "@/components/MovementEditDialog";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { bilingualLabel, formatMelbourneTime, joinMeta, locationText, movementTypeLabel } from "@/lib/format";
+import { BilingualName } from "@/components/BilingualName";
+import { formatMelbourneTime, joinMeta, locationText, movementTypeLabel } from "@/lib/format";
 import { supplierName } from "@/lib/inventory/catalog";
 import { formatQty } from "@/lib/inventory/inventory";
 import type { DerivedMovement, Material, MovementType, Supplier } from "@/lib/inventory/types";
@@ -52,17 +53,17 @@ export function MovementList({
   return (
     <>
       <div className="hidden lg:block">
-        <Table aria-label="库存流水" className={compact ? undefined : "min-w-[1080px]"}>
+        <Table aria-label="库存流水" className="table-fixed">
           <TableHeader>
             <TableRow>
-              <TableHead>时间</TableHead>
-              <TableHead>类型</TableHead>
-              <TableHead>物料</TableHead>
-              <TableHead>数量</TableHead>
-              <TableHead>变动前 → 后</TableHead>
-              {compact ? null : <TableHead>操作人</TableHead>}
-              {compact ? null : <TableHead>工单 / 领用</TableHead>}
-              {compact ? null : <TableHead>参考 / 备注</TableHead>}
+              <TableHead className={compact ? "w-[18%]" : "w-[12%]"}>时间</TableHead>
+              <TableHead className={compact ? "w-[10%]" : "w-[7%]"}>类型</TableHead>
+              <TableHead className={compact ? "w-[34%]" : "w-[22%]"}>物料</TableHead>
+              <TableHead className={compact ? "w-[16%]" : "w-[9%]"}>数量</TableHead>
+              <TableHead className={compact ? "w-[22%]" : "w-[12%]"}>变动前 → 后</TableHead>
+              {compact ? null : <TableHead className="w-[10%]">操作人</TableHead>}
+              {compact ? null : <TableHead className="w-[14%]">工单 / 领用</TableHead>}
+              {compact ? null : <TableHead className="w-[14%]">参考 / 备注</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -89,13 +90,15 @@ export function MovementList({
                     <span className={cn("font-medium", typeColor(row.type))}>{movementTypeLabel(row.type)}</span>
                   </TableCell>
                   <TableCell>
-                    <div className="font-medium">{material ? bilingualLabel(material.nameZh, material.nameEn) : "已缺失物料"}</div>
+                    <div className="font-medium">
+                      {material ? <BilingualName nameZh={material.nameZh} nameEn={material.nameEn} /> : "已缺失物料"}
+                    </div>
                     <div className="text-xs text-muted-foreground">{joinMeta([material?.sku, material ? locationText(material.location) : ""])}</div>
                   </TableCell>
-                  <TableCell className={cn("font-medium tabular-nums", typeColor(row.type))}>
+                  <TableCell className={cn("font-medium whitespace-nowrap tabular-nums", typeColor(row.type))}>
                     {signedQty(row.type, row.quantity)} {unitLabel}
                   </TableCell>
-                  <TableCell className="tabular-nums">
+                  <TableCell className="whitespace-nowrap tabular-nums">
                     {formatQty(row.derivedBefore)} → {formatQty(row.derivedAfter)} {unitLabel}
                   </TableCell>
                   {compact ? null : (
@@ -128,12 +131,14 @@ export function MovementList({
           return (
             <li key={row.id} className="rounded-xl bg-white p-4 ring-1 ring-foreground/10">
               <div className="flex items-start justify-between gap-3">
-                <div>
+                <div className="min-w-0">
                   <p className={cn("text-sm font-semibold", typeColor(row.type))}>{movementTypeLabel(row.type)}</p>
-                  <p className="mt-0.5 font-medium">{material ? bilingualLabel(material.nameZh, material.nameEn) : "已缺失物料"}</p>
+                  <p className="mt-0.5 font-medium">
+                    {material ? <BilingualName nameZh={material.nameZh} nameEn={material.nameEn} /> : "已缺失物料"}
+                  </p>
                   <p className="text-xs text-muted-foreground">{joinMeta([material?.sku, material ? locationText(material.location) : ""])}</p>
                 </div>
-                <p className={cn("text-lg font-semibold tabular-nums", typeColor(row.type))}>
+                <p className={cn("shrink-0 text-lg font-semibold whitespace-nowrap tabular-nums", typeColor(row.type))}>
                   {signedQty(row.type, row.quantity)}
                   <span className="ml-1 text-xs font-normal text-muted-foreground">{unitLabel}</span>
                 </p>

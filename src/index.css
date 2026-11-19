@@ -137,3 +137,8 @@
     @apply font-sans;
   }
 }
+
+/* 提示贴在顶栏下面，不盖住标题和手机菜单的关闭按钮。 */
+[data-sonner-toaster][data-y-position="top"] {
+  top: calc(var(--app-header-offset, 0px) + 0.5rem) !important;
+}

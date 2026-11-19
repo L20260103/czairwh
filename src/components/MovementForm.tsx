@@ -6,7 +6,8 @@ import { OptionSelect } from "@/components/OptionSelect";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { bilingualLabel, formatAud, joinMeta, locationText, movementTypeLabel } from "@/lib/format";
+import { BilingualName } from "@/components/BilingualName";
+import { formatAud, joinMeta, locationText, movementTypeLabel } from "@/lib/format";
 import { formatQty, getJobBalance, getOnHand, validateMovement } from "@/lib/inventory/inventory";
 import { specSearchText } from "@/lib/inventory/specs";
 import type { MovementDraft, MovementErrors, MovementType } from "@/lib/inventory/types";
@@ -178,13 +179,13 @@ export function MovementForm({
                       )}
                       aria-pressed={selected}
                     >
-                      <span>
-                        <span className="block text-sm font-medium">{bilingualLabel(candidate.nameZh, candidate.nameEn)}</span>
+                      <span className="min-w-0">
+                        <BilingualName nameZh={candidate.nameZh} nameEn={candidate.nameEn} className="block text-sm font-medium" />
                         <span className="block text-xs text-muted-foreground">
                           {joinMeta([candidate.sku, locationText(candidate.location)])}
                         </span>
                       </span>
-                      <span className="shrink-0 text-sm tabular-nums">
+                      <span className="shrink-0 text-sm whitespace-nowrap tabular-nums">
                         {formatQty(getOnHand(state, candidate.id))} {getUnit(candidate.unit).label}
                       </span>
                     </button>
@@ -364,7 +365,7 @@ export function MovementForm({
         {material ? (
           <div className="mt-3 space-y-3">
             <div>
-              <p className="text-base font-semibold">{bilingualLabel(material.nameZh, material.nameEn)}</p>
+              <BilingualName nameZh={material.nameZh} nameEn={material.nameEn} className="text-base font-semibold" />
               <p className="text-xs text-[#b7c6d4]">
                 {joinMeta([material.sku, locationText(material.location)])}
               </p>

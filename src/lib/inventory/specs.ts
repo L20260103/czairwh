@@ -39,7 +39,7 @@ const SPEC_LABELS: Record<string, SpecLabel> = {
   airflow_ls: { primary: "风量 L/s" },
   dimensions: { primary: "尺寸" },
   weight_kg: { primary: "重量 kg" },
-  price_your: { primary: "Your Price" },
+  price_your: { primary: "你的价格", secondary: "Your Price" },
   veu: { primary: "VEU" },
   suits: { primary: "适用型号", secondary: "Suits" },
   option: { primary: "选配", secondary: "Option" },
@@ -297,7 +297,7 @@ export function specSummary(specs: unknown): string {
   const description = specScalarText(record.description);
   if (description && description.length <= 42) return description;
   const price = specScalarText(record.price_your);
-  if (price) return `Your Price ${price}`;
+  if (price) return `你的价格 ${price}`;
   const model = specScalarText(record.model) || specScalarText(record.accessory_model) || specScalarText(record.kit_code);
   if (model) return model;
   if (description) return clip(description, 72);

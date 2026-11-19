@@ -47,9 +47,9 @@ function MovePageContent({ initialType, initialMaterialId }: { initialType: Move
         unknownMaterial={unknownMaterial}
         onMaterialChange={setSelectedMaterialId}
       />
-      <section className="mt-6 rounded-xl bg-white p-4 ring-1 ring-foreground/10">
+      <section className="mt-6 min-w-0 rounded-xl bg-white p-4 ring-1 ring-foreground/10">
         <div className="mb-3 flex items-center justify-between gap-3">
-          <h2 className="font-semibold text-[#1c3144]">
+          <h2 className="min-w-0 flex-1 break-words font-semibold text-[#1c3144]">
             {selectedMaterial ? `${bilingualLabel(selectedMaterial.nameZh, selectedMaterial.nameEn)} 的最近流水` : "最近流水"}
           </h2>
           <Link

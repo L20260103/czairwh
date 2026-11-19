@@ -50,7 +50,7 @@ export function SupplierDialog({ supplier, onClose }: { supplier: Supplier | nul
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-lg" style={{ maxWidth: "32rem" }}>
+      <DialogContent className="sm:max-w-lg" style={{ maxWidth: "32rem" }}>
         <DialogHeader>
           <DialogTitle>{supplier ? "编辑供应商" : "新增供应商"}</DialogTitle>
           <DialogDescription>这里只记供应商本身。他们卖的货号、品名和未含 GST 价格写在对应物料上。</DialogDescription>

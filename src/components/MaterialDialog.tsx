@@ -100,7 +100,7 @@ export function MaterialDialog({ material, onClose }: { material: Material | nul
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-2xl" style={{ maxWidth: "42rem" }}>
+      <DialogContent className="sm:max-w-2xl" style={{ maxWidth: "42rem" }}>
         <DialogHeader>
           <DialogTitle>{persistedId ? "编辑物料" : "新增物料"}</DialogTitle>
           <DialogDescription>中文名和英文名至少填一个，两边都有时显示为「中文 English」。保存后所有打开这个网址的人都会看到。</DialogDescription>

@@ -59,7 +59,7 @@ export function MovementEditDialog({
 
   return (
     <Dialog open onOpenChange={(open) => !open && !saving && onClose()}>
-      <DialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-lg" style={{ maxWidth: "32rem" }}>
+      <DialogContent className="sm:max-w-lg" style={{ maxWidth: "32rem" }}>
         <DialogHeader>
           <DialogTitle>编辑流水 / Edit movement</DialogTitle>
           <DialogDescription>

@@ -4,7 +4,7 @@ import { CategoryDialog } from "@/components/CategoryDialog";
 import { EmptyState, PageHeader } from "@/components/common";
 import { StickyToolbar } from "@/components/StickyToolbar";
 import { Button } from "@/components/ui/button";
-import { bilingualLabel } from "@/lib/format";
+import { BilingualName } from "@/components/BilingualName";
 import { categoriesInTreeOrder } from "@/lib/inventory/catalog";
 import type { Category } from "@/lib/inventory/types";
 import { useInventory } from "@/store/InventoryProvider";
@@ -33,7 +33,9 @@ export function CategoriesPage() {
             <li key={category.id} className="rounded-xl bg-white p-4 ring-1 ring-foreground/10" style={{ marginLeft: depth * 16 }}>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <h2 className="font-semibold">{bilingualLabel(category.nameZh, category.nameEn)}</h2>
+                  <h2 className="min-w-0 font-semibold">
+                    <BilingualName nameZh={category.nameZh} nameEn={category.nameEn} />
+                  </h2>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {category.nameZh || "无中文名"} · {category.nameEn || "无英文名"} · 排序 {category.sortOrder}
                     {depth === 0 ? " · 顶级" : " · 下级"}

@@ -1,7 +1,8 @@
 import { PageHeader } from "@/components/common";
 import { MovementList } from "@/components/MovementList";
 import { buttonVariants } from "@/components/ui/button";
-import { bilingualLabel, formatAud, joinMeta, locationText } from "@/lib/format";
+import { BilingualName } from "@/components/BilingualName";
+import { formatAud, joinMeta, locationText } from "@/lib/format";
 import { cheapestOffers, supplierName } from "@/lib/inventory/catalog";
 import { formatQty, getReorderSuggestions, movementsNewestFirst, stockedMaterialIds } from "@/lib/inventory/inventory";
 import { getUnit } from "@/lib/inventory/units";
@@ -67,8 +68,8 @@ export function DashboardPage() {
         </Link>
       </div>
 
-      <div className="mt-5 grid gap-4 xl:grid-cols-5">
-        <section className="rounded-xl bg-white p-4 ring-1 ring-foreground/10 xl:col-span-3">
+      <div className="mt-5 grid min-w-0 gap-4 xl:grid-cols-5">
+        <section className="min-w-0 rounded-xl bg-white p-4 ring-1 ring-foreground/10 xl:col-span-3">
           <div className="mb-3 flex items-center justify-between gap-3">
             <h2 className="font-semibold text-[#1c3144]">最近流水</h2>
             <Link href="/history" className="text-sm text-[#1f5f78]">
@@ -78,7 +79,7 @@ export function DashboardPage() {
           <MovementList rows={recent} materials={state.materials} suppliers={state.suppliers} compact />
         </section>
 
-        <section className="rounded-xl bg-white p-4 ring-1 ring-foreground/10 xl:col-span-2">
+        <section className="min-w-0 rounded-xl bg-white p-4 ring-1 ring-foreground/10 xl:col-span-2">
           <div className="mb-3 flex items-center justify-between gap-3">
             <h2 className="font-semibold text-[#1c3144]">待补货</h2>
             <Link href="/reorder" className="text-sm text-[#1f5f78]">
@@ -93,7 +94,7 @@ export function DashboardPage() {
                 <li key={item.material.id} className="border-b border-[#e6eef3] pb-3 last:border-0">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="font-medium">{bilingualLabel(item.material.nameZh, item.material.nameEn)}</p>
+                      <BilingualName nameZh={item.material.nameZh} nameEn={item.material.nameEn} className="font-medium" />
                       <p className="text-xs text-muted-foreground">
                         {joinMeta([item.material.sku, locationText(item.material.location)])}
                       </p>

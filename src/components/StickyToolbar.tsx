@@ -47,10 +47,34 @@ export function StickyToolbar({ children, className }: { children: ReactNode; cl
       ref={ref}
       data-slot="sticky-toolbar"
       data-testid="sticky-toolbar"
-      className={cn("sticky z-20 border-b border-[#d5dee6] bg-[#e8eef2] pt-2 pb-3", className)}
+      className={cn("sticky z-20 min-w-0 border-b border-[#d5dee6] bg-[#e8eef2] pt-2 pb-3", className)}
       style={{ top: "calc(var(--app-header-offset, 0px) - 1px)" }}
     >
       {children}
     </div>
+  );
+}
+
+/**
+ * 手机上只吸顶搜索框。筛选跟着页面滚走，避免吸顶块把卡片标题和按钮挤到顶栏与底栏之间。
+ * 大屏（lg+）筛选仍留在吸顶条里。filters 会画两次，一次用 CSS 藏起来，所以不要在里面放会重复挂载的对话框。
+ */
+export function StickySearch({
+  search,
+  filters,
+}: {
+  search: ReactNode;
+  filters?: () => ReactNode;
+}) {
+  return (
+    <>
+      <StickyToolbar>
+        <div className="grid min-w-0 gap-2">
+          {search}
+          {filters ? <div className="hidden min-w-0 lg:block">{filters()}</div> : null}
+        </div>
+      </StickyToolbar>
+      {filters ? <div className="mb-3 grid min-w-0 gap-2 lg:hidden">{filters()}</div> : null}
+    </>
   );
 }
