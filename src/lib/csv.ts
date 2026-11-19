@@ -6,7 +6,6 @@ import {
   formatQty,
   getOnHand,
   getReorderSuggestions,
-  getStockStatus,
   reorderShortfall,
   stockedMaterialIds,
   withDerivedBalances,
@@ -33,14 +32,6 @@ function cheapestText(state: InventoryState, materialId: string): [string, strin
   return [supplierName(state.suppliers, best.supplierId), best.supplierCode, best.supplierProductName, formatAud(best.priceExGst)];
 }
 
-function statusText(minStock: number, onHand: number, active: boolean, stocked: boolean, consumable: boolean): string {
-  if (!stocked) return active ? "未入过库" : "已停用；未入过库";
-  if (!consumable) return active ? "不提醒" : "已停用；不提醒";
-  const status = getStockStatus(minStock, onHand);
-  const text = status === "low" ? "低于最低库存" : status === "untracked" ? "未设最低库存" : "正常";
-  return active ? text : `已停用；${text}`;
-}
-
 /** 库存快照 CSV。常用技术参数各占一列，其余键放进「其余参数」JSON。 */
 export function inventorySnapshotCsv(state: InventoryState): string {
   const materials = state.materials.slice().sort((a, b) => a.sku.localeCompare(b.sku));
@@ -54,7 +45,6 @@ export function inventorySnapshotCsv(state: InventoryState): string {
     "库位",
     "最低库存",
     "当前库存",
-    "状态",
     "建议补货量",
     "最低供应商",
     "对方货号",
@@ -82,7 +72,6 @@ export function inventorySnapshotCsv(state: InventoryState): string {
       locationText(material.location),
       formatQty(material.minStock),
       formatQty(onHand),
-      statusText(material.minStock, onHand, material.active, stocked, consumable),
       formatQty(suggested),
       ...cheapestText(state, material.id),
       material.note,

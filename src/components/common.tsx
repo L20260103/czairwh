@@ -1,9 +1,7 @@
 import { useState, type ReactNode } from "react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { getStockStatus } from "@/lib/inventory/inventory";
 
 /** 长列表先画出这么多行，点「显示更多」再加一截。搜索仍先在全部行上做。 */
 export const VISIBLE_ROW_STEP = 150;
@@ -37,47 +35,6 @@ export function PageHeader({ title, children }: { title: string; children?: Reac
       <h1 className="text-2xl font-semibold tracking-tight text-[#1c3144]">{title}</h1>
       {children ? <div className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">{children}</div> : null}
     </div>
-  );
-}
-
-/**
- * 库存状态标记。
- * 没入过库的目录货不标成低于最低。
- * 安装耗材以外的在库物料不标低于最低，也不标未监控，改标「不提醒」。
- */
-export function StockStatusBadges({
-  minStock,
-  qty,
-  active,
-  stocked = true,
-  consumable = false,
-}: {
-  minStock: number;
-  qty: number;
-  active: boolean;
-  stocked?: boolean;
-  /** 类别在「安装耗材」子树里。只有这些在库物料才做低库存提醒。 */
-  consumable?: boolean;
-}) {
-  const status = stocked && consumable ? getStockStatus(minStock, qty) : "untracked";
-  const exempt = stocked && !consumable;
-  return (
-    <span className="inline-flex flex-wrap gap-1">
-      {active ? null : <Badge variant="secondary">已停用</Badge>}
-      {stocked ? null : <Badge variant="secondary">未入库</Badge>}
-      {status === "low" ? (
-        <Badge variant="outline" className="border-[#e4c7a4] bg-[#fbf6ee] text-[#8a4b16]">
-          低于最低
-        </Badge>
-      ) : null}
-      {active && status === "ok" ? (
-        <Badge variant="outline" className="border-[#c9e0d4] bg-[#f3faf6] text-[#1f7a4d]">
-          正常
-        </Badge>
-      ) : null}
-      {active && stocked && consumable && status === "untracked" ? <Badge variant="secondary">未监控</Badge> : null}
-      {exempt ? <Badge variant="secondary">不提醒</Badge> : null}
-    </span>
   );
 }
 

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 
-import { EmptyState, PageHeader, ShowMore, StockStatusBadges, useVisibleLimit } from "@/components/common";
+import { EmptyState, PageHeader, ShowMore, useVisibleLimit } from "@/components/common";
 import { StickySearch } from "@/components/StickyToolbar";
 import { OptionSelect } from "@/components/OptionSelect";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -96,8 +96,8 @@ export function InventoryPage() {
     <div>
       <PageHeader title="库存">
         {showAll
-          ? "正在连同还没入过库的目录物料一起显示。没记过流水的不标成缺货。只有「安装耗材」及其下级会标成低于最低，机器、风管和风口等显示「不提醒」。数量来自流水，不在这里直接改。名称显示为「中文 English」。"
-          : "只列出在本仓库有过出入库记录的物料，数量用到 0 的也会留下。供应商目录里还没入过库的货不在这里。只有「安装耗材」及其下级会标成低于最低，其他类别显示「不提醒」。数量来自流水，不在这里直接改。需要补货的排在前面。名称显示为「中文 English」。"}
+          ? "正在连同还没入过库的目录物料一起显示。没记过流水的不算缺货。数量来自流水，不在这里直接改。名称显示为「中文 English」。"
+          : "只列出在本仓库有过出入库记录的物料，数量用到 0 的也会留下。供应商目录里还没入过库的货不在这里。数量来自流水，不在这里直接改。低于最低库存的安装耗材排在前面。名称显示为「中文 English」。"}
       </PageHeader>
       <StickySearch
         search={
@@ -185,17 +185,16 @@ export function InventoryPage() {
             <Table aria-label="库存列表" className="table-fixed">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[26%]">SKU / 名称</TableHead>
-                  <TableHead className="w-[20%]">类别</TableHead>
-                  <TableHead className="w-[12%]">库位</TableHead>
-                  <TableHead className="w-[12%]">当前库存</TableHead>
+                  <TableHead className="w-[30%]">SKU / 名称</TableHead>
+                  <TableHead className="w-[22%]">类别</TableHead>
+                  <TableHead className="w-[14%]">库位</TableHead>
+                  <TableHead className="w-[14%]">当前库存</TableHead>
                   <TableHead className="w-[8%]">最低</TableHead>
-                  <TableHead className="w-[10%]">状态</TableHead>
                   <TableHead className="w-[12%]">记账</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {visibleRows.map(({ material, qty, stocked, consumable }) => (
+                {visibleRows.map(({ material, qty }) => (
                   <TableRow key={material.id}>
                     <TableCell>
                       <div className="font-medium">
@@ -212,15 +211,6 @@ export function InventoryPage() {
                     </TableCell>
                     <TableCell className="whitespace-nowrap tabular-nums">{formatQty(material.minStock)}</TableCell>
                     <TableCell>
-                      <StockStatusBadges
-                        minStock={material.minStock}
-                        qty={qty}
-                        active={material.active}
-                        stocked={stocked}
-                        consumable={consumable}
-                      />
-                    </TableCell>
-                    <TableCell>
                       <div className="flex flex-wrap gap-1">
                         <MoveLink id={material.id} type="receipt" label="入库" />
                         <MoveLink id={material.id} type="issue" label="出库" />
@@ -233,33 +223,22 @@ export function InventoryPage() {
             </Table>
           </div>
           <ul className="grid gap-3 lg:hidden">
-            {visibleRows.map(({ material, qty, stocked, consumable }) => (
+            {visibleRows.map(({ material, qty }) => (
               <li key={material.id} className="rounded-xl bg-white p-4 ring-1 ring-foreground/10">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-xs text-muted-foreground">{material.sku}</p>
-                    <h2 className="font-semibold">
-                      <BilingualName nameZh={material.nameZh} nameEn={material.nameEn} />
-                    </h2>
-                    <SpecSummary specs={material.specs} />
-                    <p className="text-xs text-muted-foreground">
-                      {joinMeta([categoryPath(state.categories, material.categoryId), locationText(material.location)])}
-                    </p>
-                  </div>
-                </div>
-                <div className="mt-3 flex items-end justify-between gap-3">
-                  <p className="text-3xl font-semibold whitespace-nowrap tabular-nums">
-                    {formatQty(qty)}
-                    <span className="ml-1 text-sm font-normal text-muted-foreground">{getUnit(material.unit).label}</span>
+                <div>
+                  <p className="text-xs text-muted-foreground">{material.sku}</p>
+                  <h2 className="font-semibold">
+                    <BilingualName nameZh={material.nameZh} nameEn={material.nameEn} />
+                  </h2>
+                  <SpecSummary specs={material.specs} />
+                  <p className="text-xs text-muted-foreground">
+                    {joinMeta([categoryPath(state.categories, material.categoryId), locationText(material.location)])}
                   </p>
-                  <StockStatusBadges
-                    minStock={material.minStock}
-                    qty={qty}
-                    active={material.active}
-                    stocked={stocked}
-                    consumable={consumable}
-                  />
                 </div>
+                <p className="mt-3 text-3xl font-semibold whitespace-nowrap tabular-nums">
+                  {formatQty(qty)}
+                  <span className="ml-1 text-sm font-normal text-muted-foreground">{getUnit(material.unit).label}</span>
+                </p>
                 <p className="mt-1 text-xs text-muted-foreground">最低 {formatQty(material.minStock)}</p>
                 <div className="mt-3 grid grid-cols-3 gap-2">
                   <MoveLink id={material.id} type="receipt" label="入库" block />
