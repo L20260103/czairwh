@@ -1,5 +1,4 @@
-import { useMemo, useRef, useState, type FormEvent } from "react";
-import { toast } from "sonner";
+import { useMemo, useState, type FormEvent } from "react";
 
 import { FormField } from "@/components/common";
 import { EmployeeNameSelect } from "@/components/EmployeeNameSelect";
@@ -14,6 +13,7 @@ import type { MovementDraft, MovementErrors, MovementType } from "@/lib/inventor
 import { getUnit } from "@/lib/inventory/units";
 import { cn } from "@/lib/utils";
 import { useInventory } from "@/store/InventoryProvider";
+import { useRecordMovement } from "@/store/useRecordMovement";
 
 const MOVEMENT_TYPES: { id: MovementType; label: string; hint: string }[] = [
   { id: "receipt", label: "入库", hint: "到货、期初或盘盈" },
@@ -33,7 +33,8 @@ export function MovementForm({
   unknownMaterial: boolean;
   onMaterialChange: (materialId: string) => void;
 }) {
-  const { state, postMovement } = useInventory();
+  const { state } = useInventory();
+  const { record, submitting } = useRecordMovement();
   const initialMaterialExists = state.materials.some((m) => m.id === initialMaterialId);
   const [type, setType] = useState<MovementType>(initialType);
   const [materialId, setMaterialId] = useState(initialMaterialExists ? initialMaterialId : "");
@@ -46,10 +47,7 @@ export function MovementForm({
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
   const [submitted, setSubmitted] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  /** 防止同一帧里连按两次提交。 */
-  const submittingRef = useRef(false);
 
   function selectMaterial(id: string) {
     setMaterialId(id);
@@ -93,32 +91,21 @@ export function MovementForm({
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitted(true);
-    if (submittingRef.current || submitting) return;
+    if (submitting) return;
     if (!validation.ok) {
       setSubmitError(errors.form ?? null);
       return;
     }
-    submittingRef.current = true;
-    setSubmitting(true);
-    try {
-      const result = await postMovement(draft);
-      if (!result.ok) {
-        const message = result.errors.form ?? result.errors.quantity ?? result.errors.jobNumber ?? "没能记账";
-        setSubmitError(message);
-        toast.error(message);
-        return;
-      }
-      setSubmitError(null);
-      toast.success(
-        `${movementTypeLabel(result.movement.type)}已记下：${formatQty(result.movement.quantity)}，库存 ${formatQty(result.movement.beforeQty)} → ${formatQty(result.movement.afterQty)}`,
-      );
-      setQuantity("");
-      setNotes("");
-      setSubmitted(false);
-    } finally {
-      submittingRef.current = false;
-      setSubmitting(false);
+    const result = await record(draft);
+    if (!result) return;
+    if (!result.ok) {
+      setSubmitError(result.errors.form ?? result.errors.quantity ?? result.errors.jobNumber ?? null);
+      return;
     }
+    setSubmitError(null);
+    setQuantity("");
+    setNotes("");
+    setSubmitted(false);
   }
 
   const submitLabel = type === "receipt" ? "确认入库" : type === "issue" ? "确认出库" : "确认退库";

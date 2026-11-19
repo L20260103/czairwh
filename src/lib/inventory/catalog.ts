@@ -267,6 +267,11 @@ export function validateOffers(
   return { ok: true, value };
 }
 
+/** 入库时优先带上的供应商：这条物料最低报价的那一家。没有报价时返回空字符串。 */
+export function preferredSupplierId(products: SupplierProduct[], materialId: string): string {
+  return cheapestOffers(products, materialId)[0]?.supplierId ?? "";
+}
+
 /** 同一物料里价格最低的报价。并列的全部返回。 */
 export function cheapestOffers(products: SupplierProduct[], materialId: string): SupplierProduct[] {
   const rows = products.filter((product) => product.materialId === materialId);
@@ -277,6 +282,48 @@ export function cheapestOffers(products: SupplierProduct[], materialId: string):
 
 export function supplierName(suppliers: Supplier[], supplierId: string): string {
   return suppliers.find((supplier) => supplier.id === supplierId)?.name ?? "已缺失供应商";
+}
+
+/** 目录记账默认操作人。名单里有在职的 Jack Li 就用名单上的写法，否则用上次记住的人。 */
+export const DEFAULT_OPERATOR_NAME = "Jack Li";
+
+export function defaultOperatorName(employees: Employee[], lastOperator: string): string {
+  const match = employees.find(
+    (employee) =>
+      employee.active &&
+      normalizeText(employee.name).localeCompare(DEFAULT_OPERATOR_NAME, "en", { sensitivity: "accent" }) === 0,
+  );
+  if (match) return match.name;
+  return normalizeText(lastOperator) || DEFAULT_OPERATOR_NAME;
+}
+
+/** 每个类别名下的物料数，含全部下级。 */
+export function categoryMaterialCounts(categories: Category[], materials: { categoryId: string }[]): Map<string, number> {
+  const direct = new Map<string, number>();
+  for (const material of materials) {
+    direct.set(material.categoryId, (direct.get(material.categoryId) ?? 0) + 1);
+  }
+  const children = new Map<string, string[]>();
+  for (const category of categories) {
+    if (!category.parentId) continue;
+    const list = children.get(category.parentId) ?? [];
+    list.push(category.id);
+    children.set(category.parentId, list);
+  }
+  const totals = new Map<string, number>();
+  const visit = (id: string, stack: Set<string>): number => {
+    const cached = totals.get(id);
+    if (cached !== undefined) return cached;
+    if (stack.has(id)) return direct.get(id) ?? 0;
+    stack.add(id);
+    let sum = direct.get(id) ?? 0;
+    for (const child of children.get(id) ?? []) sum += visit(child, stack);
+    stack.delete(id);
+    totals.set(id, sum);
+    return sum;
+  };
+  for (const category of categories) visit(category.id, new Set());
+  return totals;
 }
 
 /** 员工按 sort_order，再按姓名。下拉和员工页用同一顺序。 */

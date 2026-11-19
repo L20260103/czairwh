@@ -75,6 +75,23 @@ export function useSearchParams(): URLSearchParams {
   return new URLSearchParams(search);
 }
 
+/** 改当前页的查询串，不换路径。空值会被删掉。内容没变时不写历史。 */
+export function replaceSearchParams(mutate: (params: URLSearchParams) => void): void {
+  if (typeof window === "undefined") return;
+  const { pathname, search } = readHashLocation();
+  const params = new URLSearchParams(search);
+  mutate(params);
+  for (const [key, value] of [...params.entries()]) {
+    if (!value.trim()) params.delete(key);
+  }
+  const nextSearch = params.toString();
+  if (nextSearch === new URLSearchParams(search).toString()) return;
+  const url = new URL(window.location.href);
+  url.hash = `${pathname}${nextSearch ? `?${nextSearch}` : ""}`;
+  window.history.replaceState(null, "", url);
+  notifyAll();
+}
+
 export function Link({ href, onClick, ...props }: AnchorHTMLAttributes<HTMLAnchorElement> & { href: string }) {
   return (
     <a

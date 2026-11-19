@@ -1,3 +1,4 @@
+import { catalogueSearchPlan, CATALOGUE_PAGE_SIZE } from "@/lib/inventory/catalogueSearch";
 import { MAX_LENGTH } from "@/lib/inventory/inventory";
 import type {
   Category,
@@ -535,6 +536,114 @@ export async function deleteSupplier(id: string): Promise<{ ok: true } | RemoteF
   const { error } = await supabase.from("suppliers").delete().eq("id", id);
   if (error) return failure(error, "没能删除供应商");
   return { ok: true };
+}
+
+export interface CatalogueQuery {
+  search: string;
+  /** null 表示不按类别收窄。空数组表示筛选后没有类别，直接空结果。 */
+  categoryIds: string[] | null;
+  supplierId: string | null;
+  /** null 表示不按物料 id 收窄。空数组表示没有符合的物料。 */
+  materialIds: string[] | null;
+  /** 从 0 开始。 */
+  page: number;
+  pageSize?: number;
+}
+
+const ID_CHUNK = 40;
+
+function compareSkuId(a: { sku: string; id: string }, b: { sku: string; id: string }): number {
+  return a.sku < b.sku ? -1 : a.sku > b.sku ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+}
+
+async function supplierCodeMaterialIds(patterns: string[]): Promise<string[]> {
+  if (patterns.length === 0) return [];
+  const filter = patterns.map((pattern) => `supplier_code.ilike.${pattern}`).join(",");
+  const { data, error } = await supabase.from("supplier_products").select("material_id").or(filter).limit(80);
+  if (error || !data) return [];
+  const ids = new Set<string>();
+  for (const row of data) {
+    if (row && typeof row === "object" && typeof (row as { material_id?: unknown }).material_id === "string") {
+      ids.add((row as { material_id: string }).material_id);
+    }
+  }
+  return [...ids];
+}
+
+/**
+ * 目录一页。筛选在 Supabase 里做：类别 in、供应商报价、ilike/or、range。
+ * 有库存的 id 由调用方按流水合计算好再传进来。
+ */
+export async function queryCatalogue(
+  input: CatalogueQuery,
+): Promise<{ ok: true; materials: Material[]; total: number } | RemoteFailure> {
+  if (input.categoryIds && input.categoryIds.length === 0) return { ok: true, materials: [], total: 0 };
+  if (input.materialIds && input.materialIds.length === 0) return { ok: true, materials: [], total: 0 };
+
+  const pageSize = input.pageSize ?? CATALOGUE_PAGE_SIZE;
+  const page = Number.isFinite(input.page) && input.page > 0 ? Math.floor(input.page) : 0;
+  const plan = catalogueSearchPlan(input.search);
+  const groups = plan.groups.slice();
+  if (groups.length === 1 && plan.codePatterns.length > 0) {
+    const codeIds = await supplierCodeMaterialIds(plan.codePatterns);
+    if (codeIds.length > 0) groups[0] = `${groups[0]},id.in.(${codeIds.join(",")})`;
+  }
+
+  const from = page * pageSize;
+  const to = from + pageSize - 1;
+  const detailSelect = input.supplierId ? `${MATERIAL_COLUMNS},supplier_products!inner(supplier_id)` : MATERIAL_COLUMNS;
+  const idSelect = input.supplierId ? "id, sku, supplier_products!inner(supplier_id)" : "id, sku";
+
+  const apply = (columns: string, ids: string[] | null) => {
+    let query = supabase.from("materials").select(columns, { count: "exact" }).order("sku").order("id");
+    if (input.categoryIds && input.categoryIds.length > 0) query = query.in("category_id", input.categoryIds);
+    if (input.supplierId) query = query.eq("supplier_products.supplier_id", input.supplierId);
+    if (ids && ids.length > 0) query = query.in("id", ids);
+    for (const group of groups) query = query.or(group);
+    return query;
+  };
+
+  try {
+    if (input.materialIds && input.materialIds.length > ID_CHUNK) {
+      const matches: { sku: string; id: string }[] = [];
+      for (let index = 0; index < input.materialIds.length; index += ID_CHUNK) {
+        const slice = input.materialIds.slice(index, index + ID_CHUNK);
+        const { data, error } = await apply(idSelect, slice).range(0, ID_CHUNK - 1);
+        if (error) return failure(error, "没能读取物料目录");
+        for (const row of data ?? []) {
+          if (!row || typeof row !== "object") continue;
+          const record = row as { id?: unknown; sku?: unknown };
+          if (typeof record.id === "string" && typeof record.sku === "string") matches.push({ id: record.id, sku: record.sku });
+        }
+      }
+      matches.sort(compareSkuId);
+      const pageIds = matches.slice(from, to + 1).map((row) => row.id);
+      if (pageIds.length === 0) return { ok: true, materials: [], total: matches.length };
+      const { data, error } = await supabase.from("materials").select(MATERIAL_COLUMNS).in("id", pageIds);
+      if (error) return failure(error, "没能读取物料目录");
+      const byId = new Map<string, Material>();
+      for (const row of data ?? []) {
+        const material = mapMaterial(row);
+        byId.set(material.id, material);
+      }
+      const materials = pageIds.map((id) => byId.get(id)).filter((material): material is Material => !!material);
+      return { ok: true, materials, total: matches.length };
+    }
+
+    const { data, error, count } = await apply(detailSelect, input.materialIds).range(from, to);
+    if (error) return failure(error, "没能读取物料目录");
+    const seen = new Set<string>();
+    const materials: Material[] = [];
+    for (const row of data ?? []) {
+      const material = mapMaterial(row);
+      if (seen.has(material.id)) continue;
+      seen.add(material.id);
+      materials.push(material);
+    }
+    return { ok: true, materials, total: count ?? materials.length };
+  } catch (caught) {
+    return { ok: false, error: caught instanceof Error ? caught.message : "物料目录里的数据无法识别。" };
+  }
 }
 
 export async function replaceMaterialOffers(

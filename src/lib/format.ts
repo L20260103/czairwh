@@ -1,3 +1,4 @@
+import { formatQty } from "@/lib/inventory/inventory";
 import type { MovementType } from "@/lib/inventory/types";
 
 /** 墨尔本时间，例如 2026/11/04 10:20。 */
@@ -59,5 +60,15 @@ export function movementTypeLabel(type: MovementType): string {
     default:
       return "退库";
   }
+}
+
+/** 记账成功提示。出入库页和目录对话框用同一句。 */
+export function postedMovementSummary(movement: {
+  type: MovementType;
+  quantity: number;
+  beforeQty: number;
+  afterQty: number;
+}): string {
+  return `${movementTypeLabel(movement.type)}已记下：${formatQty(movement.quantity)}，库存 ${formatQty(movement.beforeQty)} → ${formatQty(movement.afterQty)}`;
 }
 
