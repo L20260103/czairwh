@@ -284,17 +284,31 @@ export function supplierName(suppliers: Supplier[], supplierId: string): string 
   return suppliers.find((supplier) => supplier.id === supplierId)?.name ?? "已缺失供应商";
 }
 
-/** 目录记账默认操作人。名单里有在职的 Jack Li 就用名单上的写法，否则用上次记住的人。 */
+/** 入库、出库、退库表单默认操作人。名单里有同名员工就用名单上的写法。 */
 export const DEFAULT_OPERATOR_NAME = "Jack Li";
 
-export function defaultOperatorName(employees: Employee[], lastOperator: string): string {
-  const match = employees.find(
+/** 领用人空态。出库仍要手选；不要改成上次记住的人。 */
+export const RECIPIENT_PLACEHOLDER = "请选择领用人";
+
+/**
+ * 操作人一律先选 Jack Li。
+ * 上次记住的操作人（app_settings.last_operator）和本机 localStorage 都不能覆盖这个默认值。
+ */
+export function defaultOperatorName(employees: Employee[]): string {
+  const matches = employees.filter(
     (employee) =>
-      employee.active &&
       normalizeText(employee.name).localeCompare(DEFAULT_OPERATOR_NAME, "en", { sensitivity: "accent" }) === 0,
   );
-  if (match) return match.name;
-  return normalizeText(lastOperator) || DEFAULT_OPERATOR_NAME;
+  const match = matches.find((employee) => employee.active) ?? matches[0];
+  return match?.name ?? DEFAULT_OPERATOR_NAME;
+}
+
+/**
+ * 领用人默认留空，由用户手选。
+ * 不读上次流水、app_settings，也不读 localStorage / sessionStorage。
+ */
+export function defaultRecipientName(): string {
+  return "";
 }
 
 /** 每个类别名下的物料数，含全部下级。 */

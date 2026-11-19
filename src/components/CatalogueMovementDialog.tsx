@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { BilingualName } from "@/components/BilingualName";
 import { bilingualLabel, formatAud, movementTypeLabel } from "@/lib/format";
-import { defaultOperatorName, preferredSupplierId } from "@/lib/inventory/catalog";
+import { defaultOperatorName, defaultRecipientName, preferredSupplierId, RECIPIENT_PLACEHOLDER } from "@/lib/inventory/catalog";
 import { formatQty, getJobBalance, getOnHand, validateMovement } from "@/lib/inventory/inventory";
 import type { Material, MovementDraft, MovementErrors, MovementType } from "@/lib/inventory/types";
 import { getUnit } from "@/lib/inventory/units";
@@ -31,9 +31,9 @@ export function CatalogueMovementDialog({
   const { state } = useInventory();
   const { record, submitting } = useRecordMovement();
   const [quantity, setQuantity] = useState("");
-  const [operator, setOperator] = useState(() => defaultOperatorName(state.employees, state.lastOperator));
+  const [operator, setOperator] = useState(() => defaultOperatorName(state.employees));
   const [jobNumber, setJobNumber] = useState("");
-  const [recipient, setRecipient] = useState("");
+  const [recipient, setRecipient] = useState(defaultRecipientName);
   const [supplierId, setSupplierId] = useState(() => {
     if (type !== "receipt") return "none";
     const preferred = preferredSupplierId(state.supplierProducts, material.id);
@@ -157,21 +157,31 @@ export function CatalogueMovementDialog({
           ) : null}
 
           {type === "issue" ? (
-            <FormField label="领用人" htmlFor="catalogue-recipient" error={fieldError("recipient")}>
+            <FormField
+              label="领用人"
+              htmlFor="catalogue-recipient"
+              error={fieldError("recipient")}
+              hint="出库必填。从在职员工里选择，不会自动带上上次的领用人。"
+            >
               <EmployeeNameSelect
                 id="catalogue-recipient"
                 label="领用人"
                 value={recipient}
                 onChange={setRecipient}
                 employees={state.employees}
-                placeholder="谁拿走这批料"
+                placeholder={RECIPIENT_PLACEHOLDER}
                 invalid={!!fieldError("recipient")}
               />
             </FormField>
           ) : null}
 
           {type === "return" ? (
-            <FormField label="退回人（可选）" htmlFor="catalogue-recipient" error={fieldError("recipient")}>
+            <FormField
+              label="退回人（可选）"
+              htmlFor="catalogue-recipient"
+              error={fieldError("recipient")}
+              hint="可以不填。从在职员工里选择，不会自动带上上次的领用人。"
+            >
               <EmployeeNameSelect
                 id="catalogue-recipient"
                 label="退回人"
@@ -179,7 +189,7 @@ export function CatalogueMovementDialog({
                 onChange={setRecipient}
                 employees={state.employees}
                 allowEmpty
-                placeholder="可以不填"
+                placeholder={RECIPIENT_PLACEHOLDER}
                 invalid={!!fieldError("recipient")}
               />
             </FormField>

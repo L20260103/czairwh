@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { BilingualName } from "@/components/BilingualName";
 import { formatAud, joinMeta, locationText, movementTypeLabel } from "@/lib/format";
+import { defaultOperatorName, defaultRecipientName, RECIPIENT_PLACEHOLDER } from "@/lib/inventory/catalog";
 import { formatQty, getJobBalance, getOnHand, validateMovement } from "@/lib/inventory/inventory";
 import { specSearchText } from "@/lib/inventory/specs";
 import type { MovementDraft, MovementErrors, MovementType } from "@/lib/inventory/types";
@@ -41,9 +42,9 @@ export function MovementForm({
   const [materialId, setMaterialId] = useState(initialMaterialExists ? initialMaterialId : "");
   const [materialQuery, setMaterialQuery] = useState("");
   const [quantity, setQuantity] = useState("");
-  const [operator, setOperator] = useState(state.lastOperator);
+  const [operator, setOperator] = useState(() => defaultOperatorName(state.employees));
   const [jobNumber, setJobNumber] = useState("");
-  const [recipient, setRecipient] = useState("");
+  const [recipient, setRecipient] = useState(defaultRecipientName);
   const [supplierId, setSupplierId] = useState("none");
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
@@ -106,6 +107,8 @@ export function MovementForm({
     setSubmitError(null);
     setQuantity("");
     setNotes("");
+    setRecipient(defaultRecipientName());
+    setOperator(defaultOperatorName(state.employees));
     setSubmitted(false);
   }
 
@@ -123,7 +126,10 @@ export function MovementForm({
                 type="button"
                 role="radio"
                 aria-checked={checked}
-                onClick={() => setType(option.id)}
+                onClick={() => {
+                  setType(option.id);
+                  setRecipient(defaultRecipientName());
+                }}
                 className={cn(
                   "rounded-lg border px-2 py-2 text-left",
                   checked ? "border-[#1f5f78] bg-[#f3f8fb]" : "border-[#d5dee6] bg-white",
@@ -241,7 +247,7 @@ export function MovementForm({
               label="领用人"
               htmlFor="recipient"
               error={fieldError("recipient")}
-              hint="从在职员工里选。不在名单上的旧值会留在这里，直到你改选别人。"
+              hint="出库必填。从在职员工里选择，不会自动带上上次的领用人。"
             >
               <EmployeeNameSelect
                 id="recipient"
@@ -249,7 +255,7 @@ export function MovementForm({
                 value={recipient}
                 onChange={setRecipient}
                 employees={state.employees}
-                placeholder="谁拿走这批料"
+                placeholder={RECIPIENT_PLACEHOLDER}
                 invalid={!!fieldError("recipient")}
               />
             </FormField>
@@ -260,7 +266,7 @@ export function MovementForm({
               label="退回人（可选）"
               htmlFor="recipient"
               error={fieldError("recipient")}
-              hint="可以不填。从在职员工里选，或保留原来的名字。"
+              hint="可以不填。从在职员工里选择，不会自动带上上次的领用人。"
             >
               <EmployeeNameSelect
                 id="recipient"
@@ -269,7 +275,7 @@ export function MovementForm({
                 onChange={setRecipient}
                 employees={state.employees}
                 allowEmpty
-                placeholder="可以不填"
+                placeholder={RECIPIENT_PLACEHOLDER}
                 invalid={!!fieldError("recipient")}
               />
             </FormField>
