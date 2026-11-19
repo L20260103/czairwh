@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 
 import { PageHeader } from "@/components/common";
+import { StickyToolbar } from "@/components/StickyToolbar";
 import { MovementList } from "@/components/MovementList";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -72,7 +73,8 @@ export function HistoryPage() {
       <PageHeader title="流水">
         按墨尔本时间显示。变动前和变动后按流水顺序重算，所以和现存数量对得上。入库如果选了供应商，会显示在参考那一列。操作人、工单、领用、参考和备注可以改；数量、物料、类型和时间不能改。
       </PageHeader>
-      <div className="mb-4 grid gap-2">
+      <StickyToolbar>
+      <div className="grid gap-2">
         <Input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
@@ -113,6 +115,7 @@ export function HistoryPage() {
           </p>
         ) : null}
       </div>
+      </StickyToolbar>
       <p className="mb-3 text-xs text-muted-foreground">显示 {rows.length} 笔</p>
       <div className="rounded-xl bg-white p-3 ring-1 ring-foreground/10 sm:p-4">
         <MovementList rows={rows} materials={state.materials} suppliers={state.suppliers} editable />

@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { useElementHeightVar } from "@/components/StickyToolbar";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -129,6 +130,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { ready, loadError, state, persistError, reload } = useInventory();
   const [menuOpen, setMenuOpen] = useState(false);
+  const headerRef = useElementHeightVar("--app-header-offset");
   const lowCount = getReorderSuggestions(state).length;
   const mismatchCount = ready ? countBalanceMismatches(state) : 0;
 
@@ -193,7 +195,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </aside>
 
         <div className="min-w-0">
-          <header className="sticky top-0 z-30 border-b border-[#d5dee6] bg-[#f7fafc]/95 backdrop-blur">
+          <header ref={headerRef} className="sticky top-0 z-30 border-b border-[#d5dee6] bg-[#f7fafc]/95 backdrop-blur">
             <div className="flex flex-wrap items-center gap-2 px-3 py-2.5 lg:px-8">
               <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
                 <SheetTrigger
