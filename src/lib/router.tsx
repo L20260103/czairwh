@@ -28,7 +28,7 @@ function notifyAll() {
 }
 
 /** 侧边栏里的页面。旧的 #/guide 不在其中，会回到总览。 */
-const KNOWN_PAGE_PREFIXES = ["/inventory", "/move", "/history", "/reorder", "/materials", "/suppliers", "/categories", "/employees"];
+const KNOWN_PAGE_PREFIXES = ["/inventory", "/map", "/move", "/history", "/reorder", "/materials", "/suppliers", "/categories", "/employees"];
 
 function isKnownPage(pathname: string): boolean {
   if (pathname === "/") return true;

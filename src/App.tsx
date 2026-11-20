@@ -8,13 +8,16 @@ import { MaterialsPage } from "@/pages/MaterialsPage";
 import { MovePage } from "@/pages/MovePage";
 import { ReorderPage } from "@/pages/ReorderPage";
 import { SuppliersPage } from "@/pages/SuppliersPage";
+import { WarehouseMapPage } from "@/pages/WarehouseMapPage";
 import { usePathname } from "@/lib/router";
 import { InventoryProvider } from "@/store/InventoryProvider";
+import { LocationProvider } from "@/store/LocationProvider";
 
 /** 按 hash 路径选页面。 */
 function CurrentPage() {
   const pathname = usePathname();
   if (pathname.startsWith("/inventory")) return <InventoryPage />;
+  if (pathname.startsWith("/map")) return <WarehouseMapPage />;
   if (pathname.startsWith("/move")) return <MovePage />;
   if (pathname.startsWith("/history")) return <HistoryPage />;
   if (pathname.startsWith("/reorder")) return <ReorderPage />;
@@ -29,9 +32,11 @@ export function App() {
   // 登录门还没接上。以后用 AuthGate 包住 InventoryProvider，并先执行 supabase/authenticated-only.sql。
   return (
     <InventoryProvider>
-      <AppShell>
-        <CurrentPage />
-      </AppShell>
+      <LocationProvider>
+        <AppShell>
+          <CurrentPage />
+        </AppShell>
+      </LocationProvider>
     </InventoryProvider>
   );
 }

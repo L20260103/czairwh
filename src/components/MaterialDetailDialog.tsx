@@ -4,6 +4,7 @@ import { MovementList } from "@/components/MovementList";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { BilingualName } from "@/components/BilingualName";
+import { LocationChips } from "@/components/LocationChips";
 import { formatAud, joinMeta, locationText, movementTypeLabel } from "@/lib/format";
 import { categoryPath, supplierName } from "@/lib/inventory/catalog";
 import { formatQty, getOnHand, movementsNewestFirst, stockedMaterialIds } from "@/lib/inventory/inventory";
@@ -70,6 +71,13 @@ export function MaterialDetailDialog({
             ))}
           </div>
         </div>
+
+        <section>
+          <h3 className="text-sm font-semibold text-[#1c3144]">货位</h3>
+          <div className="mt-2">
+            <LocationChips materialId={material.id} emptyLabel="还没标在仓库地图上。" />
+          </div>
+        </section>
 
         <section>
           <h3 className="text-sm font-semibold text-[#1c3144]">供应商报价</h3>
