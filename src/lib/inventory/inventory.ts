@@ -253,13 +253,18 @@ export function hasMovements(state: InventoryState, materialId: string): boolean
 
 type ParseResult = { ok: true; value: number } | { ok: false; error: string };
 
-/** 解析数量输入。mode = "minimum" 时允许 0（最低库存）。 */
-export function parseQuantity(input: string, unitCode: string, mode: "minimum" | "movement"): ParseResult {
+/** 盘点多出来时写入库，参考单号用这个。 */
+export const STOCKTAKE_RECEIPT_REFERENCE = "盘点入库";
+/** 盘点少了时写出库，参考单号用这个。不填工单和领用人。 */
+export const STOCKTAKE_ISSUE_REFERENCE = "盘点出库";
+
+/** 解析数量输入。mode = "minimum" 时允许 0（最低库存）。count 是盘点或改货位数量，也允许 0。 */
+export function parseQuantity(input: string, unitCode: string, mode: "minimum" | "movement" | "count"): ParseResult {
   const unit = getUnit(unitCode);
   const text = input.trim();
-  const isMinimum = mode === "minimum";
+  const allowZero = mode === "minimum" || mode === "count";
   if (!text) {
-    return { ok: false, error: isMinimum ? "请填写最低库存。暂时不监控时填 0。" : "请填写数量。" };
+    return { ok: false, error: mode === "minimum" ? "请填写最低库存。暂时不监控时填 0。" : "请填写数量。" };
   }
   if (text.includes(",") || text.includes("，")) {
     return { ok: false, error: "请使用小数点，例如 2.5，不要用逗号。" };
@@ -277,7 +282,7 @@ export function parseQuantity(input: string, unitCode: string, mode: "minimum" |
   const value = fromCents(toCents(Number(text)));
   if (!Number.isFinite(value)) return { ok: false, error: "数量无效。" };
   if (value < 0) return { ok: false, error: "数量不能为负数。" };
-  if (value === 0) return isMinimum ? { ok: true, value: 0 } : { ok: false, error: "数量必须大于 0。" };
+  if (value === 0) return allowZero ? { ok: true, value: 0 } : { ok: false, error: "数量必须大于 0。" };
   if (value > MAX_QUANTITY) return { ok: false, error: `单笔数量不能超过 ${formatQty(MAX_QUANTITY)}。` };
   return { ok: true, value };
 }
@@ -296,6 +301,7 @@ interface NormalizedMovement {
   supplierId: string;
   reference: string;
   notes: string;
+  locationCode: string;
 }
 
 /** 用于判断“重复提交”的指纹。 */
@@ -310,6 +316,7 @@ function movementFingerprint(m: NormalizedMovement): string {
     m.supplierId,
     m.reference.toLowerCase(),
     m.notes.toLowerCase(),
+    m.locationCode,
   ].join("|");
 }
 
@@ -325,7 +332,9 @@ export function validateMovement(
 ): ValidateMovementResult {
   const errors: MovementErrors = {};
   const type = draft.type;
+  const stocktake = draft.stocktake === true;
   if (type !== "receipt" && type !== "issue" && type !== "return") errors.type = "请选择入库、出库或退库。";
+  if (stocktake && type !== "receipt" && type !== "issue") errors.type = "盘点只记入库或出库。";
 
   const material = state.materials.find((m) => m.id === draft.materialId);
   if (!draft.materialId || !material) errors.materialId = "请选择物料。";
@@ -341,11 +350,12 @@ export function validateMovement(
   }
 
   const operator = normalizeText(draft.operator);
-  const jobNumber = type === "receipt" ? "" : normalizeText(draft.jobNumber);
-  const recipient = type === "receipt" ? "" : normalizeText(draft.recipient);
-  const supplierId = type === "receipt" ? draft.supplierId.trim() : "";
+  const jobNumber = stocktake || type === "receipt" ? "" : normalizeText(draft.jobNumber);
+  const recipient = stocktake || type === "receipt" ? "" : normalizeText(draft.recipient);
+  const supplierId = type === "receipt" && !stocktake ? draft.supplierId.trim() : "";
   const reference = normalizeText(draft.reference);
   const notes = normalizeText(draft.notes);
+  const locationCode = normalizeText(draft.locationCode ?? "");
 
   if (supplierId && !state.suppliers.some((supplier) => supplier.id === supplierId)) {
     errors.supplierId = "请选择有效的供应商。";
@@ -355,13 +365,20 @@ export function validateMovement(
   const operatorTooLong = tooLong(operator, MAX_LENGTH.operator, "操作人");
   if (operatorTooLong) errors.operator = operatorTooLong;
 
-  if ((type === "issue" || type === "return") && !jobNumber) {
+  if (stocktake && type === "issue" && reference !== STOCKTAKE_ISSUE_REFERENCE) {
+    errors.reference = "盘点出库的参考单号不正确。";
+  }
+  if (stocktake && type === "receipt" && reference !== STOCKTAKE_RECEIPT_REFERENCE) {
+    errors.reference = "盘点入库的参考单号不正确。";
+  }
+
+  if (!stocktake && (type === "issue" || type === "return") && !jobNumber) {
     errors.jobNumber = type === "issue" ? "出库必须填写工单号。" : "退库必须填写工单号。";
   }
   const jobTooLong = tooLong(jobNumber, MAX_LENGTH.job, "工单号");
   if (jobTooLong) errors.jobNumber = jobTooLong;
 
-  if (type === "issue" && !recipient) errors.recipient = "出库必须填写领用人。";
+  if (!stocktake && type === "issue" && !recipient) errors.recipient = "出库必须填写领用人。";
   const recipientTooLong = tooLong(recipient, MAX_LENGTH.recipient, "领用人");
   if (recipientTooLong) errors.recipient = recipientTooLong;
 
@@ -400,6 +417,7 @@ export function validateMovement(
     supplierId,
     reference,
     notes,
+    locationCode,
   };
   const atMs = Date.parse(at);
   if (!Number.isFinite(atMs)) return { ok: false, errors: { form: "记账时间无效。" } };
@@ -488,6 +506,7 @@ export function postMovement(
     supplierId: v.supplierId,
     reference: v.reference,
     notes: v.notes,
+    locationCode: v.locationCode,
   };
   return {
     ok: true,

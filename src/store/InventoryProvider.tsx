@@ -26,6 +26,7 @@ import {
   updateMovementText,
   updateSupplier,
 } from "@/lib/inventory/remote";
+import { adjustPlacement, ensureIssueFitsLocation, notifyLocationRefresh, setPlacementRecord } from "@/lib/inventory/locationsRemote";
 import { supabase } from "@/lib/supabase/client";
 import type {
   Category,
@@ -170,10 +171,33 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       postMovement: async (draft) => {
         const result = postMovement(stateRef.current, draft, { id: createId(), at: new Date().toISOString() });
         if (!result.ok) return result;
+        const locationCode = result.movement.locationCode;
+        if (draft.stocktake && (typeof draft.countedQuantity !== "number" || !locationCode)) {
+          return { ok: false, errors: { form: "盘点需要货位和清点数量。" } };
+        }
+        if (locationCode && result.movement.type === "issue") {
+          const fit = await ensureIssueFitsLocation(result.movement.materialId, locationCode, result.movement.quantity);
+          if (!fit.ok) return { ok: false, errors: { quantity: fit.error } };
+        }
         const saved = await insertMovement(result.movement);
         if (!saved.ok) {
           setPersistError(saved.error);
           return { ok: false, errors: { form: saved.error } };
+        }
+        if (locationCode) {
+          const adjusted = draft.stocktake
+            ? await setPlacementRecord({
+                materialId: result.movement.materialId,
+                locationCode,
+                quantity: draft.countedQuantity ?? 0,
+              })
+            : await adjustPlacement({
+                materialId: result.movement.materialId,
+                locationCode,
+                delta: result.movement.type === "issue" ? -result.movement.quantity : result.movement.quantity,
+              });
+          if (!adjusted.ok) setPersistError(`流水已记下，但货位数量没改成。${adjusted.error}`);
+          notifyLocationRefresh();
         }
         const remembered = await rememberOperator(result.state.lastOperator);
         if (!remembered.ok) setPersistError(`流水已记下，但没能记住操作人。${remembered.error}`);

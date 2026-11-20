@@ -18,7 +18,7 @@ import { supabase } from "@/lib/supabase/client";
 const MATERIAL_COLUMNS =
   "id, sku, name_zh, name_en, category_id, unit, location, min_stock, active, note, created_at, specs";
 const MOVEMENT_COLUMNS =
-  "id, at, type, material_id, quantity, before_qty, after_qty, operator, job_number, recipient, supplier_id, reference, notes";
+  "id, at, type, material_id, quantity, before_qty, after_qty, operator, job_number, recipient, supplier_id, reference, notes, location_code";
 const CATEGORY_COLUMNS = "id, name_zh, name_en, parent_id, sort_order, created_at";
 const SUPPLIER_COLUMNS = "id, name, contact, notes, updated_at";
 const OFFER_COLUMNS =
@@ -172,6 +172,7 @@ function mapMovement(value: unknown): Movement {
     supplierId: row.supplier_id == null ? "" : asString(row.supplier_id, "供应商"),
     reference: asOptionalString(row.reference),
     notes: asOptionalString(row.notes),
+    locationCode: asOptionalString(row.location_code),
   };
 }
 
@@ -360,6 +361,7 @@ export async function insertMovement(movement: Movement): Promise<{ ok: true } |
     supplier_id: movement.supplierId || null,
     reference: movement.reference,
     notes: movement.notes,
+    location_code: movement.locationCode || null,
   });
   if (error) return failure(error, "没能记下这笔流水");
   return { ok: true };

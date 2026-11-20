@@ -1,14 +1,15 @@
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { BilingualName } from "@/components/BilingualName";
+import { CatalogueMovementDialog } from "@/components/CatalogueMovementDialog";
+import { PlacementCard } from "@/components/PlacementCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { cellAt, columnKeys, levelsDescending, type MaterialPlacement, type StorageLocation } from "@/lib/inventory/locations";
 import { materialMatchesQuery } from "@/lib/inventory/locations";
-import { formatQty, fromCents, onHandCentsByMaterial } from "@/lib/inventory/inventory";
-import type { Material } from "@/lib/inventory/types";
+import { formatQty, fromCents, onHandCents, parseQuantity, toCents } from "@/lib/inventory/inventory";
+import type { Material, MovementType } from "@/lib/inventory/types";
 import { getUnit } from "@/lib/inventory/units";
 import { cn } from "@/lib/utils";
 import { useLocations } from "@/store/LocationProvider";
@@ -193,21 +194,9 @@ function LocationCell({
   onAdding: (code: string | null) => void;
 }) {
   const { state } = useInventory();
-  const { removePlacement } = useLocations();
-  const onHand = onHandCentsByMaterial(state);
   const filled = items.length > 0;
-  const [removing, setRemoving] = useState<string | null>(null);
-
-  async function remove(id: string) {
-    setRemoving(id);
-    const result = await removePlacement(id);
-    setRemoving(null);
-    if (!result.ok) {
-      toast.error(result.error);
-      return;
-    }
-    toast.success(`已从 ${cell.code} 移出`);
-  }
+  const [acting, setActing] = useState<{ materialId: string; type: MovementType; locationQuantity: number } | null>(null);
+  const actingMaterial = acting ? state.materials.find((item) => item.id === acting.materialId) : undefined;
 
   return (
     <div
@@ -221,36 +210,10 @@ function LocationCell({
     >
       <p className="font-semibold text-[#1c3144]">{cell.code}</p>
       {items.length === 0 ? <p className="mt-1 text-xs text-muted-foreground">空</p> : null}
-      <ul className="mt-1 grid gap-1.5">
-        {items.map((item) => {
-          const material = state.materials.find((entry) => entry.id === item.materialId);
-          const cents = onHand.get(item.materialId) ?? 0;
-          return (
-            <li key={item.id} className="rounded-md bg-white/80 px-2 py-1.5">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  {material ? (
-                    <BilingualName nameZh={material.nameZh} nameEn={material.nameEn} className="text-sm font-medium text-[#1c3144]" />
-                  ) : (
-                    <p className="text-sm text-[#1c3144]">物料已不在目录里</p>
-                  )}
-                  <p className="text-xs text-muted-foreground">
-                    {material ? `${material.sku} · ${formatQty(fromCents(cents))} ${getUnit(material.unit).label}` : item.materialId}
-                  </p>
-                  {item.notes ? <p className="text-xs text-[#5d6e7c]">{item.notes}</p> : null}
-                </div>
-                <button
-                  type="button"
-                  className="shrink-0 text-xs font-medium text-[#9a3412] disabled:opacity-50"
-                  disabled={removing === item.id}
-                  onClick={() => void remove(item.id)}
-                >
-                  移出
-                </button>
-              </div>
-            </li>
-          );
-        })}
+      <ul className="mt-1 grid gap-2">
+        {items.map((item) => (
+          <PlacementCard key={item.id} placement={item} onMovement={(type) => setActing({ materialId: item.materialId, type, locationQuantity: item.quantity })} />
+        ))}
       </ul>
       {adding ? (
         <MaterialPicker
@@ -264,6 +227,16 @@ function LocationCell({
           放入物料
         </button>
       )}
+      {acting && actingMaterial ? (
+        <CatalogueMovementDialog
+          material={actingMaterial}
+          type={acting.type}
+          lockedLocationCode={cell.code}
+          maxLocationQuantity={acting.type === "issue" ? acting.locationQuantity : undefined}
+          onClose={() => setActing(null)}
+          onRecorded={() => setActing(null)}
+        />
+      ) : null}
     </div>
   );
 }
@@ -280,9 +253,11 @@ function MaterialPicker({
   onAdded: () => void;
 }) {
   const { state } = useInventory();
-  const { addPlacement } = useLocations();
+  const { placements, placeMaterial } = useLocations();
   const [query, setQuery] = useState("");
   const [note, setNote] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [quantity, setQuantity] = useState("");
   const [busy, setBusy] = useState(false);
   const needle = query.trim();
   const matches: Material[] = [];
@@ -297,11 +272,25 @@ function MaterialPicker({
       matches.push(material);
     }
   }
-  const onHand = onHandCentsByMaterial(state);
+  const selected = selectedId ? state.materials.find((item) => item.id === selectedId) : undefined;
 
-  async function add(materialId: string) {
+  function choose(material: Material) {
+    const onHand = onHandCents(state, material.id);
+    const located = placements.reduce((sum, item) => (item.materialId === material.id ? sum + toCents(item.quantity) : sum), 0);
+    const unplaced = onHand - located;
+    setSelectedId(material.id);
+    setQuantity(unplaced > 0 ? formatQty(fromCents(unplaced)) : "");
+  }
+
+  async function add() {
+    if (!selected) return;
+    const parsed = parseQuantity(quantity, selected.unit, "movement");
+    if (!parsed.ok) {
+      toast.error(parsed.error);
+      return;
+    }
     setBusy(true);
-    const result = await addPlacement({ materialId, locationCode, notes: note });
+    const result = await placeMaterial({ materialId: selected.id, locationCode, quantity: parsed.value, notes: note });
     setBusy(false);
     if (!result.ok) {
       toast.error(result.error);
@@ -330,13 +319,29 @@ function MaterialPicker({
         className="h-10 bg-white"
       />
       {needle && matches.length === 0 ? <p className="text-xs text-muted-foreground">没有匹配的物料。</p> : null}
+      {selected ? (
+        <div className="grid gap-2 rounded-md bg-white p-2 ring-1 ring-[#d5dee6]">
+          <p className="text-sm font-medium text-[#1c3144]">{selected.nameZh || selected.nameEn}</p>
+          <Input
+            value={quantity}
+            onChange={(event) => setQuantity(event.target.value)}
+            aria-label="放入数量"
+            inputMode="decimal"
+            className="h-9 bg-white tabular-nums"
+          />
+          <p className="text-[11px] leading-4 text-muted-foreground">只记在这个格子里，不改总库存。未定位的数量会预先填上，可以改。</p>
+          <Button type="button" className="h-9" disabled={busy} onClick={() => void add()}>
+            放入
+          </Button>
+        </div>
+      ) : null}
       <ul className="grid gap-1">
         {matches.map((material) => (
           <li key={material.id}>
             <button
               type="button"
               disabled={busy}
-              onClick={() => void add(material.id)}
+              onClick={() => choose(material)}
               className="w-full rounded-md bg-white px-2 py-1.5 text-left ring-1 ring-[#d5dee6] hover:ring-[#1f5f78] disabled:opacity-50"
             >
               <span className="block text-sm font-medium text-[#1c3144]">
@@ -345,7 +350,7 @@ function MaterialPicker({
               </span>
               <span className="block text-xs text-muted-foreground">
                 {material.sku}
-                {material.nameEn && material.nameZh ? ` · ${material.nameEn}` : ""} · {formatQty(fromCents(onHand.get(material.id) ?? 0))}{" "}
+                {material.nameEn && material.nameZh ? ` · ${material.nameEn}` : ""} · 库存 {formatQty(fromCents(onHandCents(state, material.id)))}{" "}
                 {getUnit(material.unit).label}
               </span>
             </button>

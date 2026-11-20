@@ -1,6 +1,7 @@
 import { useMemo, useState, type FormEvent } from "react";
 
 import { FormField } from "@/components/common";
+import { MovementLocationField } from "@/components/MovementLocationField";
 import { EmployeeNameSelect } from "@/components/EmployeeNameSelect";
 import { OptionSelect } from "@/components/OptionSelect";
 import { Button } from "@/components/ui/button";
@@ -48,6 +49,7 @@ export function MovementForm({
   const [supplierId, setSupplierId] = useState("none");
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
+  const [locationCode, setLocationCode] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -66,6 +68,7 @@ export function MovementForm({
     supplierId: supplierId === "none" ? "" : supplierId,
     reference,
     notes,
+    locationCode,
   };
   // 每次渲染都校验一遍，用来显示预览和错误。
   const validation = validateMovement(state, draft, new Date().toISOString());
@@ -321,6 +324,14 @@ export function MovementForm({
               />
             </FormField>
           ) : null}
+
+          <MovementLocationField
+            id="movement-location"
+            type={type}
+            materialId={materialId}
+            value={locationCode}
+            onChange={setLocationCode}
+          />
 
           <FormField
             label="操作人"

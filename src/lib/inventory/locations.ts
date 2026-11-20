@@ -16,6 +16,8 @@ export interface MaterialPlacement {
   id: string;
   materialId: string;
   locationCode: string;
+  /** 这个货位上的数量，单位跟物料自己的单位。 */
+  quantity: number;
   notes: string;
   createdAt: string;
 }

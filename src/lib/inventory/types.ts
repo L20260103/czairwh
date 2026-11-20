@@ -64,6 +64,8 @@ export interface Movement {
   supplierId: string;
   reference: string;
   notes: string;
+  /** 记在仓库地图的哪个货位。空字符串表示没指定。 */
+  locationCode: string;
 }
 
 /** 流水 + 根据全部流水重新推算出的前后数量。 */
@@ -102,6 +104,12 @@ export interface MovementDraft {
   supplierId: string;
   reference: string;
   notes: string;
+  /** 可选。空字符串表示这笔流水不记到具体货位。 */
+  locationCode?: string;
+  /** 盘点差额。不要求工单号和领用人。 */
+  stocktake?: boolean;
+  /** 盘点后这个货位应有的数量。 */
+  countedQuantity?: number;
 }
 
 /** 物料表单的原始输入。 */
