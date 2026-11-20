@@ -5,6 +5,7 @@ import {
   ClipboardList,
   ExternalLink,
   LayoutDashboard,
+  Map,
   Menu,
   ScrollText,
   Store,
@@ -35,6 +36,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { href: "/", label: "总览", icon: LayoutDashboard },
   { href: "/inventory", label: "库存", icon: Warehouse },
+  { href: "/map", label: "仓库地图", icon: Map },
   { href: "/move", label: "出入库", icon: ArrowLeftRight },
   { href: "/history", label: "流水", icon: ScrollText },
   { href: "/reorder", label: "待补货", icon: ClipboardList },
@@ -44,8 +46,10 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/employees", label: "员工", icon: Users },
 ];
 
-/** 手机底部导航只放前 5 个。 */
-const MOBILE_NAV_ITEMS = NAV_ITEMS.slice(0, 5);
+/** 手机底部仍是总览、库存、出入库、流水、待补货。仓库地图在侧栏和菜单里。 */
+const MOBILE_NAV_ITEMS = NAV_ITEMS.filter((item) =>
+  ["/", "/inventory", "/move", "/history", "/reorder"].includes(item.href),
+);
 
 function isActive(pathname: string, href: string): boolean {
   if (href === "/") return pathname === "/";

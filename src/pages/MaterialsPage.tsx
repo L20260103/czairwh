@@ -4,6 +4,7 @@ import { CatalogueMovementDialog } from "@/components/CatalogueMovementDialog";
 import { CategoryTree } from "@/components/CategoryTree";
 import { EmptyState, PageHeader } from "@/components/common";
 import { BilingualName } from "@/components/BilingualName";
+import { LocationChips } from "@/components/LocationChips";
 import { StickySearch } from "@/components/StickyToolbar";
 import { MaterialDetailDialog } from "@/components/MaterialDetailDialog";
 import { MaterialDialog } from "@/components/MaterialDialog";
@@ -381,6 +382,9 @@ export function MaterialsPage() {
                           </button>
                           <SpecLine specs={material.specs} />
                           <p className="mt-1 text-xs break-all text-muted-foreground">{material.sku}</p>
+                          <div className="mt-1">
+                            <LocationChips materialId={material.id} />
+                          </div>
                         </TableCell>
                         <TableCell className="whitespace-normal text-xs break-words text-muted-foreground">
                           {categoryPath(state.categories, material.categoryId) || "未分类"}
@@ -427,6 +431,9 @@ export function MaterialsPage() {
                           locationText(material.location),
                         ])}
                       </p>
+                      <div className="mt-1">
+                        <LocationChips materialId={material.id} />
+                      </div>
                       <p className="mt-2 text-2xl font-semibold whitespace-nowrap tabular-nums text-[#1c3144]">
                         {formatQty(fromCents(onHand.get(material.id) ?? 0))}
                         <span className="ml-1 text-sm font-normal text-muted-foreground">{getUnit(material.unit).label}</span>
