@@ -1,8 +1,21 @@
+import { formatQty, fromCents, toCents } from "@/lib/inventory/inventory";
 import type { MaterialPlacement, StorageLocation } from "@/lib/inventory/locations";
 import { supabase } from "@/lib/supabase/client";
 
 const LOCATION_COLUMNS = "code, zone, bay, col, level, sort, notes";
-const PLACEMENT_COLUMNS = "id, material_id, location_code, notes, created_at";
+const PLACEMENT_COLUMNS = "id, material_id, location_code, quantity, notes, created_at";
+
+const refreshers = new Set<() => void>();
+
+/** 货位数量改完后通知地图重新读。 */
+export function subscribeLocationRefresh(listener: () => void): () => void {
+  refreshers.add(listener);
+  return () => refreshers.delete(listener);
+}
+
+export function notifyLocationRefresh(): void {
+  refreshers.forEach((listener) => listener());
+}
 
 type DbError = { message: string; code?: string };
 type Page<T> = { data: T[] | null; error: DbError | null };
@@ -38,6 +51,12 @@ function asNullableInt(value: unknown): number | null {
   return asInt(value, "列");
 }
 
+function asQty(value: unknown): number {
+  const number = typeof value === "number" ? value : typeof value === "string" ? Number(value) : Number.NaN;
+  if (!Number.isFinite(number)) throw new Error("共享货位里的数量无效。");
+  return fromCents(toCents(number));
+}
+
 function mapLocation(value: unknown): StorageLocation {
   const row = asRecord(value, "货位");
   return {
@@ -57,6 +76,7 @@ function mapPlacement(value: unknown): MaterialPlacement {
     id: asString(row.id, "存放记录"),
     materialId: asString(row.material_id, "物料"),
     locationCode: asString(row.location_code, "货位编号"),
+    quantity: asQty(row.quantity),
     notes: asText(row.notes).trim(),
     createdAt: asString(row.created_at, "时间"),
   };
@@ -112,19 +132,38 @@ export function normalizePlacementNote(notes: string): { ok: true; notes: string
   return { ok: true, notes: text };
 }
 
-export async function insertPlacement(input: {
+export async function fetchPlacement(
+  materialId: string,
+  locationCode: string,
+): Promise<{ ok: true; placement: MaterialPlacement | null } | LocationFailure> {
+  const { data, error } = await supabase
+    .from("material_locations")
+    .select(PLACEMENT_COLUMNS)
+    .eq("material_id", materialId)
+    .eq("location_code", locationCode)
+    .maybeSingle();
+  if (error) return failure(error, "没能读取这个货位的数量");
+  if (!data) return { ok: true, placement: null };
+  try {
+    return { ok: true, placement: mapPlacement(data) };
+  } catch (caught) {
+    return { ok: false, error: caught instanceof Error ? caught.message : "货位数量无法识别。" };
+  }
+}
+
+async function insertPlacementRow(input: {
   materialId: string;
   locationCode: string;
+  quantity: number;
   notes: string;
 }): Promise<{ ok: true; placement: MaterialPlacement } | LocationFailure> {
-  const note = normalizePlacementNote(input.notes);
-  if (!note.ok) return note;
   const { data, error } = await supabase
     .from("material_locations")
     .insert({
       material_id: input.materialId,
       location_code: input.locationCode,
-      notes: note.notes || null,
+      quantity: input.quantity,
+      notes: input.notes || null,
     })
     .select(PLACEMENT_COLUMNS)
     .single();
@@ -136,8 +175,147 @@ export async function insertPlacement(input: {
   }
 }
 
+async function updatePlacementRow(
+  id: string,
+  quantity: number,
+  notes: string,
+): Promise<{ ok: true; placement: MaterialPlacement } | LocationFailure> {
+  const { data, error } = await supabase
+    .from("material_locations")
+    .update({ quantity, notes: notes || null })
+    .eq("id", id)
+    .select(PLACEMENT_COLUMNS)
+    .single();
+  if (error) return failure(error, "没能改这个货位的数量");
+  try {
+    return { ok: true, placement: mapPlacement(data) };
+  } catch (caught) {
+    return { ok: false, error: caught instanceof Error ? caught.message : "改数量之后的返回数据无法识别。" };
+  }
+}
+
 export async function deletePlacement(id: string): Promise<{ ok: true } | LocationFailure> {
   const { error } = await supabase.from("material_locations").delete().eq("id", id);
   if (error) return failure(error, "没能移出这个货位");
+  return { ok: true };
+}
+
+/** 放入：只加货位数量，不写流水。已经在这个格子里就累加。 */
+export async function placeMaterial(input: {
+  materialId: string;
+  locationCode: string;
+  quantity: number;
+  notes: string;
+}): Promise<{ ok: true } | LocationFailure> {
+  const note = normalizePlacementNote(input.notes);
+  if (!note.ok) return note;
+  if (!(input.quantity > 0)) return { ok: false, error: "放入数量必须大于 0。" };
+  const existing = await fetchPlacement(input.materialId, input.locationCode);
+  if (!existing.ok) return existing;
+  if (!existing.placement) {
+    const inserted = await insertPlacementRow({ ...input, notes: note.notes });
+    return inserted.ok ? { ok: true } : inserted;
+  }
+  const next = fromCents(toCents(existing.placement.quantity) + toCents(input.quantity));
+  const updated = await updatePlacementRow(existing.placement.id, next, note.notes || existing.placement.notes);
+  return updated.ok ? { ok: true } : updated;
+}
+
+/** 直接改这个格子的数量和备注。数量为 0 就删掉这一行。 */
+export async function setPlacementRecord(input: {
+  materialId: string;
+  locationCode: string;
+  quantity: number;
+  notes?: string;
+}): Promise<{ ok: true } | LocationFailure> {
+  const existing = await fetchPlacement(input.materialId, input.locationCode);
+  if (!existing.ok) return existing;
+  if (!(input.quantity > 0)) {
+    if (!existing.placement) return { ok: true };
+    return deletePlacement(existing.placement.id);
+  }
+  const notes = input.notes === undefined ? (existing.placement?.notes ?? "") : input.notes;
+  const note = normalizePlacementNote(notes);
+  if (!note.ok) return note;
+  if (!existing.placement) {
+    const inserted = await insertPlacementRow({
+      materialId: input.materialId,
+      locationCode: input.locationCode,
+      quantity: input.quantity,
+      notes: note.notes,
+    });
+    return inserted.ok ? { ok: true } : inserted;
+  }
+  const updated = await updatePlacementRow(existing.placement.id, input.quantity, note.notes);
+  return updated.ok ? { ok: true } : updated;
+}
+
+/** 出库减少、入库和退库增加。减到 0 就删行。 */
+export async function adjustPlacement(input: {
+  materialId: string;
+  locationCode: string;
+  delta: number;
+}): Promise<{ ok: true } | LocationFailure> {
+  const existing = await fetchPlacement(input.materialId, input.locationCode);
+  if (!existing.ok) return existing;
+  const current = existing.placement?.quantity ?? 0;
+  const next = fromCents(toCents(current) + toCents(input.delta));
+  if (next < 0) {
+    return { ok: false, error: `本位置只有 ${formatQty(current)}，不够这次扣减。` };
+  }
+  if (!existing.placement) {
+    if (next === 0) return { ok: true };
+    const inserted = await insertPlacementRow({
+      materialId: input.materialId,
+      locationCode: input.locationCode,
+      quantity: next,
+      notes: "",
+    });
+    return inserted.ok ? { ok: true } : inserted;
+  }
+  if (next === 0) return deletePlacement(existing.placement.id);
+  const updated = await updatePlacementRow(existing.placement.id, next, existing.placement.notes);
+  return updated.ok ? { ok: true } : updated;
+}
+
+/** 把数量挪到另一个货位。不写流水。 */
+export async function transferPlacement(input: {
+  materialId: string;
+  fromCode: string;
+  toCode: string;
+  quantity: number;
+}): Promise<{ ok: true } | LocationFailure> {
+  if (input.fromCode === input.toCode) return { ok: false, error: "请换一个货位。" };
+  if (!(input.quantity > 0)) return { ok: false, error: "移动数量必须大于 0。" };
+  const source = await fetchPlacement(input.materialId, input.fromCode);
+  if (!source.ok) return source;
+  if (!source.placement || toCents(source.placement.quantity) < toCents(input.quantity)) {
+    return { ok: false, error: `本位置只有 ${formatQty(source.placement?.quantity ?? 0)}。` };
+  }
+  const removed = await adjustPlacement({
+    materialId: input.materialId,
+    locationCode: input.fromCode,
+    delta: -input.quantity,
+  });
+  if (!removed.ok) return removed;
+  return placeMaterial({
+    materialId: input.materialId,
+    locationCode: input.toCode,
+    quantity: input.quantity,
+    notes: "",
+  });
+}
+
+export async function ensureIssueFitsLocation(
+  materialId: string,
+  locationCode: string,
+  quantity: number,
+): Promise<{ ok: true } | LocationFailure> {
+  const row = await fetchPlacement(materialId, locationCode);
+  if (!row.ok) return row;
+  if (!row.placement) return { ok: false, error: "这个货位没有这个物料。" };
+  if (toCents(row.placement.quantity) < toCents(quantity)) {
+    return { ok: false, error: `本位置只有 ${formatQty(row.placement.quantity)}，不能出这么多。` };
+  }
   return { ok: true };
 }

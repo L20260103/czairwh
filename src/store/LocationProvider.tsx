@@ -1,7 +1,14 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import type { MaterialPlacement, StorageLocation } from "@/lib/inventory/locations";
-import { deletePlacement, insertPlacement, loadWarehouseMap } from "@/lib/inventory/locationsRemote";
+import {
+  deletePlacement,
+  loadWarehouseMap,
+  placeMaterial,
+  setPlacementRecord,
+  subscribeLocationRefresh,
+  transferPlacement,
+} from "@/lib/inventory/locationsRemote";
 
 interface LocationContextValue {
   ready: boolean;
@@ -9,10 +16,23 @@ interface LocationContextValue {
   locations: StorageLocation[];
   placements: MaterialPlacement[];
   reload: () => void;
-  addPlacement: (input: {
+  placeMaterial: (input: {
     materialId: string;
     locationCode: string;
+    quantity: number;
     notes: string;
+  }) => Promise<{ ok: true } | { ok: false; error: string }>;
+  updatePlacement: (input: {
+    materialId: string;
+    locationCode: string;
+    quantity: number;
+    notes: string;
+  }) => Promise<{ ok: true } | { ok: false; error: string }>;
+  transferPlacement: (input: {
+    materialId: string;
+    fromCode: string;
+    toCode: string;
+    quantity: number;
   }) => Promise<{ ok: true } | { ok: false; error: string }>;
   removePlacement: (id: string) => Promise<{ ok: true } | { ok: false; error: string }>;
 }
@@ -53,9 +73,13 @@ export function LocationProvider({ children }: { children: ReactNode }) {
     };
     window.addEventListener("focus", onVisible);
     document.addEventListener("visibilitychange", onVisible);
+    const unsubscribe = subscribeLocationRefresh(() => {
+      void refresh();
+    });
     return () => {
       window.removeEventListener("focus", onVisible);
       document.removeEventListener("visibilitychange", onVisible);
+      unsubscribe();
     };
   }, [refresh]);
 
@@ -68,8 +92,20 @@ export function LocationProvider({ children }: { children: ReactNode }) {
       reload: () => {
         void refresh();
       },
-      addPlacement: async (input) => {
-        const saved = await insertPlacement(input);
+      placeMaterial: async (input) => {
+        const saved = await placeMaterial(input);
+        if (!saved.ok) return saved;
+        await refresh();
+        return { ok: true };
+      },
+      updatePlacement: async (input) => {
+        const saved = await setPlacementRecord(input);
+        if (!saved.ok) return saved;
+        await refresh();
+        return { ok: true };
+      },
+      transferPlacement: async (input) => {
+        const saved = await transferPlacement(input);
         if (!saved.ok) return saved;
         await refresh();
         return { ok: true };

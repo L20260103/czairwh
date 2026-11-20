@@ -94,6 +94,7 @@ export function MovementList({
                       {material ? <BilingualName nameZh={material.nameZh} nameEn={material.nameEn} /> : "已缺失物料"}
                     </div>
                     <div className="text-xs text-muted-foreground">{joinMeta([material?.sku, material ? locationText(material.location) : ""])}</div>
+                    {row.locationCode ? <div className="text-xs text-muted-foreground">货位 {row.locationCode}</div> : null}
                   </TableCell>
                   <TableCell className={cn("font-medium whitespace-nowrap tabular-nums", typeColor(row.type))}>
                     {signedQty(row.type, row.quantity)} {unitLabel}
@@ -137,6 +138,7 @@ export function MovementList({
                     {material ? <BilingualName nameZh={material.nameZh} nameEn={material.nameEn} /> : "已缺失物料"}
                   </p>
                   <p className="text-xs text-muted-foreground">{joinMeta([material?.sku, material ? locationText(material.location) : ""])}</p>
+                  {row.locationCode ? <p className="text-xs text-muted-foreground">货位 {row.locationCode}</p> : null}
                 </div>
                 <p className={cn("shrink-0 text-lg font-semibold whitespace-nowrap tabular-nums", typeColor(row.type))}>
                   {signedQty(row.type, row.quantity)}

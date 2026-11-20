@@ -1,6 +1,7 @@
 import { useMemo, useState, type FormEvent } from "react";
 
 import { FormField } from "@/components/common";
+import { MovementLocationField } from "@/components/MovementLocationField";
 import { EmployeeNameSelect } from "@/components/EmployeeNameSelect";
 import { OptionSelect } from "@/components/OptionSelect";
 import { Button } from "@/components/ui/button";
@@ -10,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { BilingualName } from "@/components/BilingualName";
 import { bilingualLabel, formatAud, movementTypeLabel } from "@/lib/format";
 import { defaultOperatorName, defaultRecipientName, preferredSupplierId, RECIPIENT_PLACEHOLDER } from "@/lib/inventory/catalog";
-import { formatQty, getJobBalance, getOnHand, validateMovement } from "@/lib/inventory/inventory";
+import { formatQty, getJobBalance, getOnHand, toCents, validateMovement } from "@/lib/inventory/inventory";
 import type { Material, MovementDraft, MovementErrors, MovementType } from "@/lib/inventory/types";
 import { getUnit } from "@/lib/inventory/units";
 import { useInventory } from "@/store/InventoryProvider";
@@ -20,11 +21,17 @@ import { useRecordMovement } from "@/store/useRecordMovement";
 export function CatalogueMovementDialog({
   material,
   type,
+  lockedLocationCode,
+  maxLocationQuantity,
   onClose,
   onRecorded,
 }: {
   material: Material;
   type: MovementType;
+  /** 从仓库地图打开时，货位已经定好。 */
+  lockedLocationCode?: string;
+  /** 出库不能超过这个格子里的数量。 */
+  maxLocationQuantity?: number;
   onClose: () => void;
   onRecorded: (materialId: string) => void;
 }) {
@@ -41,6 +48,7 @@ export function CatalogueMovementDialog({
   });
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
+  const [locationCode, setLocationCode] = useState(lockedLocationCode ?? "");
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -54,6 +62,7 @@ export function CatalogueMovementDialog({
     supplierId: supplierId === "none" ? "" : supplierId,
     reference,
     notes,
+    locationCode: lockedLocationCode ?? locationCode,
   };
   const validation = validateMovement(state, draft, new Date().toISOString());
   const errors: MovementErrors = validation.ok ? {} : validation.errors;
@@ -90,6 +99,14 @@ export function CatalogueMovementDialog({
       setSubmitError(errors.form ?? errors.quantity ?? errors.jobNumber ?? errors.operator ?? errors.recipient ?? null);
       return;
     }
+    if (
+      type === "issue" &&
+      typeof maxLocationQuantity === "number" &&
+      toCents(validation.value.quantity) > toCents(maxLocationQuantity)
+    ) {
+      setSubmitError(`本位置只有 ${formatQty(maxLocationQuantity)} ${unit.label}。`);
+      return;
+    }
     const result = await record(draft);
     if (!result) return;
     if (!result.ok) {
@@ -120,7 +137,12 @@ export function CatalogueMovementDialog({
             <BilingualName nameZh={material.nameZh} nameEn={material.nameEn} className="mt-1 block font-normal" />
           </DialogTitle>
           <DialogDescription>
-            {material.sku} · 当前库存 {formatQty(onHand)} {unit.label}。记入和出入库页同一本流水，出库不能超过当前库存。
+            {material.sku} · 当前库存 {formatQty(onHand)} {unit.label}
+            {lockedLocationCode ? ` · 货位 ${lockedLocationCode}` : ""}
+            {type === "issue" && typeof maxLocationQuantity === "number"
+              ? ` · 本位置最多 ${formatQty(maxLocationQuantity)} ${unit.label}`
+              : ""}
+            。记入和出入库页同一本流水。
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} noValidate className="grid gap-4">
@@ -128,7 +150,11 @@ export function CatalogueMovementDialog({
             label="数量"
             htmlFor="catalogue-quantity"
             error={fieldError("quantity", quantity.trim().length > 0)}
-            hint={`单位「${unit.label}」${unit.integer ? "只接受整数" : "最多两位小数"}。不能为 0 或负数。`}
+            hint={
+              type === "issue" && typeof maxLocationQuantity === "number"
+                ? `单位「${unit.label}」。不能超过本位置 ${formatQty(maxLocationQuantity)} ${unit.label}，也不能超过总库存。`
+                : `单位「${unit.label}」${unit.integer ? "只接受整数" : "最多两位小数"}。不能为 0 或负数。`
+            }
           >
             <Input
               id="catalogue-quantity"
@@ -206,6 +232,16 @@ export function CatalogueMovementDialog({
               />
             </FormField>
           ) : null}
+
+          {lockedLocationCode ? null : (
+            <MovementLocationField
+              id="catalogue-location"
+              type={type}
+              materialId={material.id}
+              value={locationCode}
+              onChange={setLocationCode}
+            />
+          )}
 
           <FormField label="操作人" htmlFor="catalogue-operator" error={fieldError("operator")}>
             <EmployeeNameSelect
